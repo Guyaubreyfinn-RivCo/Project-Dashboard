@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fieldbook — Crew Hours Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#EDEFEA; --panel:#F7F7F3; --ink:#12212E; --ink-soft:#3C4B57;
+  --muted:#6E7269; --line:#D7D3C4; --accent:#C1571F; --accent-ink:#FFF6EE;
+  --teal:#3F6E68; --teal-soft:#DCE7E4; --amber:#C1571F; --amber-soft:#F3E1D2;
+  --danger:#B23A3A; --shadow: none;
+  --font-display:'Space Grotesk',sans-serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  --radius:3px;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --bg:#101820; --panel:#161F29; --ink:#ECEAE1; --ink-soft:#C7CDCF;
+    --muted:#8B9294; --line:#2B3742; --accent:#E1793F; --accent-ink:#1A0E06;
+    --teal:#6FA79E; --teal-soft:#1D2B29; --amber:#E1793F; --amber-soft:#2B2013;
+    --danger:#E06868;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101820; --panel:#161F29; --ink:#ECEAE1; --ink-soft:#C7CDCF;
+  --muted:#8B9294; --line:#2B3742; --accent:#E1793F; --accent-ink:#1A0E06;
+  --teal:#6FA79E; --teal-soft:#1D2B29; --amber:#E1793F; --amber-soft:#2B2013;
+  --danger:#E06868;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);}
+body{min-height:100vh;}
+h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-0.01em;}
+button{font-family:var(--font-body);cursor:pointer;}
+::selection{background:var(--accent);color:var(--accent-ink);}
+
+/* ---------- shell ---------- */
+#app{display:flex;min-height:100vh;}
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--line);
+  background:var(--bg);z-index:20;
+}
+.brand{display:flex;align-items:baseline;gap:10px;}
+.brand .mark{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:-0.02em;}
+.brand .tag{font-size:12px;color:var(--muted);font-family:var(--font-mono);}
+.top-actions{display:flex;gap:10px;align-items:center;}
+.btn{
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:8px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .15s, background .15s;
+}
+.btn:hover{border-color:var(--ink-soft);}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
+.btn.primary:hover{filter:brightness(1.06);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+input[type="file"]{display:none;}
+
+/* ---------- nav rail ---------- */
+.rail{
+  position:fixed;left:0;top:56px;bottom:0;width:76px;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:stretch;padding-top:8px;background:var(--bg);z-index:15;
+}
+.rail-tab{
+  display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 4px;
+  color:var(--muted);border-left:2px solid transparent;font-size:11px;font-weight:600;
+  font-family:var(--font-mono);letter-spacing:.02em;text-transform:uppercase;
+}
+.rail-tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
+.rail-tab.active{color:var(--ink);border-left-color:var(--accent);background:var(--panel);}
+.rail-tab:not(.active):hover{color:var(--ink-soft);}
+
+/* ---------- main ---------- */
+main{margin-left:76px;margin-top:56px;flex:1;min-width:0;padding:28px 32px 60px;}
+.hidden{display:none !important;}
+
+/* ---------- drop zone ---------- */
+.dropwrap{
+  margin-left:76px;margin-top:56px;min-height:calc(100vh - 56px);
+  display:flex;align-items:center;justify-content:center;padding:40px;
+}
+.dropzone{
+  width:100%;max-width:640px;border:1.5px dashed var(--line);border-radius:6px;
+  padding:64px 40px;text-align:center;background:var(--panel);transition:border-color .15s, background .15s;
+}
+.dropzone.drag{border-color:var(--accent);background:var(--amber-soft);}
+.dropzone svg{width:40px;height:40px;stroke:var(--muted);fill:none;stroke-width:1.3;margin-bottom:18px;}
+.dropzone h2{font-size:22px;margin-bottom:8px;}
+.dropzone p{color:var(--muted);font-size:14px;margin:0 0 22px;line-height:1.5;}
+.dropzone .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin-top:18px;}
+
+.filelist{max-width:640px;margin:22px auto 0;text-align:left;}
+.filerow{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.filerow .fname{font-family:var(--font-mono);color:var(--ink-soft);}
+.filerow .fstatus{font-size:11px;color:var(--muted);}
+.filerow .fstatus.ok{color:var(--teal);}
+.filerow .fstatus.err{color:var(--danger);}
+
+/* ---------- KPI strip ---------- */
+.kpi-strip{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:26px;background:var(--panel);}
+.kpi{flex:1;padding:16px 20px;border-right:1px solid var(--line);}
+.kpi:last-child{border-right:none;}
+.kpi .num{font-family:var(--font-mono);font-size:26px;font-weight:600;line-height:1;}
+.kpi .lbl{font-size:11.5px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
+
+/* ---------- filter bar ---------- */
+.filterbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:22px;}
+.filterbar .flabel{font-size:12px;color:var(--muted);font-weight:600;margin-right:4px;}
+.chip{
+  border:1px solid var(--line);background:var(--panel);padding:5px 11px;border-radius:20px;
+  font-size:12.5px;color:var(--ink-soft);user-select:none;
+}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.chip.clear{color:var(--accent);border-color:var(--accent);}
+
+/* ---------- section / charts ---------- */
+.section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 12px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:26px;}
+.card{border:1px solid var(--line);border-radius:6px;padding:18px 18px 12px;background:var(--panel);}
+.card h3{font-size:14px;font-weight:600;margin-bottom:14px;}
+.chartwrap{position:relative;height:260px;}
+.chartwrap.tall{height:300px;}
+
+/* ---------- heatmap ---------- */
+.heatmap-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel);}
+table.heat{border-collapse:collapse;font-size:11px;font-family:var(--font-mono);white-space:nowrap;}
+table.heat th,table.heat td{padding:5px 7px;text-align:center;border-bottom:1px solid var(--line);}
+table.heat th{position:sticky;top:0;background:var(--panel);font-weight:600;color:var(--muted);z-index:2;}
+table.heat td.rowlabel,table.heat th.rowlabel{
+  position:sticky;left:0;background:var(--panel);text-align:left;font-family:var(--font-body);
+  font-size:12px;color:var(--ink-soft);z-index:3;padding-right:14px;border-right:1px solid var(--line);
+}
+table.heat th.rowlabel{z-index:4;}
+
+/* ---------- index table ---------- */
+.index-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.searchbox{
+  flex:1;min-width:200px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:8px 12px;border-radius:var(--radius);font-size:13px;font-family:var(--font-body);
+}
+.searchbox:focus{outline:none;border-color:var(--accent);}
+table.idx{width:100%;border-collapse:collapse;font-size:13px;}
+table.idx thead th{
+  text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--ink);font-size:11px;
+  text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;
+}
+table.idx thead th:hover{color:var(--ink);}
+table.idx tbody tr.baserow{cursor:pointer;}
+table.idx tbody tr.baserow:hover{background:var(--teal-soft);}
+table.idx tbody tr.baserow td{padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600;}
+table.idx tbody tr.subrow td{padding:6px 10px 6px 26px;border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:12.5px;}
+table.idx tbody tr.subrow.hidden{display:none;}
+table.idx td.num,table.idx th.num{text-align:right;font-family:var(--font-mono);}
+.caret{display:inline-block;width:10px;transition:transform .12s;color:var(--muted);}
+.caret.open{transform:rotate(90deg);}
+.badge{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:1px 7px;margin-left:6px;}
+
+footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5px;color:var(--muted);font-family:var(--font-mono);}
+
+@media (max-width: 860px){
+  .grid2{grid-template-columns:1fr;}
+  .rail{width:60px;}
+  main,.dropwrap{margin-left:60px;}
+  .brand .tag{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="mark">FIELDBOOK</span><span class="tag">crew hours, sorted</span></div>
+  <div class="top-actions">
+    <button class="btn" id="addMoreBtn" style="display:none;">+ Add files</button>
+    <button class="btn primary" id="exportBtn" style="display:none;">Export summary</button>
+  </div>
+  <input type="file" id="fileInput" accept=".xlsx" multiple>
+</div>
+
+<div class="rail" id="rail" style="display:none;">
+  <div class="rail-tab active" data-tab="dashboard">
+    <svg viewBox="0 0 24 24"><path d="M3 12h4v8H3zM10 6h4v14h-4zM17 9h4v11h-4z"/></svg>
+    Dash
+  </div>
+  <div class="rail-tab" data-tab="index">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+    Index
+  </div>
+</div>
+
+<div class="dropwrap" id="dropwrap">
+  <div>
+    <div class="dropzone" id="dropzone">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <h2>Drop timesheet workbooks here</h2>
+      <p>Drag in any number of the biweekly .xlsx crew timesheets<br>— PP#1 through PP#26 — and Fieldbook builds the index and dashboard.</p>
+      <button class="btn primary" id="browseBtn">Choose files</button>
+      <div class="hint">Runs entirely in this browser · nothing is uploaded anywhere</div>
+    </div>
+    <div class="filelist" id="filelist"></div>
+  </div>
+</div>
+
+<main id="main" class="hidden">
+
+  <section id="view-dashboard">
+    <div class="kpi-strip" id="kpiStrip"></div>
+
+    <div class="filterbar" id="empFilterBar">
+      <span class="flabel">Crew</span>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Hours by crew member</h3>
+        <div class="chartwrap tall"><canvas id="chartEmployee"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Hours by pay period</h3>
+        <div class="chartwrap tall"><canvas id="chartPayPeriod"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Top 15 projects</h3>
+        <div class="chartwrap tall"><canvas id="chartProjects"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Hours by earn code</h3>
+        <div class="chartwrap tall"><canvas id="chartEarn"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-title">Crew × pay period</div>
+    <div class="heatmap-scroll"><table class="heat" id="heatTable"></table></div>
+  </section>
+
+  <section id="view-index" class="hidden">
+    <div class="index-toolbar">
+      <input class="searchbox" id="idxSearch" placeholder="Search project number…">
+      <button class="btn" id="expandAllBtn">Expand all</button>
+      <button class="btn" id="collapseAllBtn">Collapse all</button>
+    </div>
+    <table class="idx" id="idxTable">
+      <thead>
+        <tr>
+          <th data-sort="base" style="width:38%;">Project</th>
+          <th data-sort="hours" class="num">Total hours</th>
+          <th data-sort="lines" class="num">Line items</th>
+          <th data-sort="emps" class="num">Crew</th>
+        </tr>
+      </thead>
+      <tbody id="idxBody"></tbody>
+    </table>
+  </section>
+
+  <footer class="note">Fieldbook processes files locally in your browser. Nothing is sent to a server.</footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================= STATE ============================= */
+  const state = {
+    files: [],              // {name, status}
+    records: [],            // cleaned line-item records
+    employees: [],          // sorted unique employee names
+    activeEmployees: new Set(), // filter selection; empty = all
+    tab: 'dashboard',
+    charts: {},
+    idxSort: {key:'hours', dir:-1},
+    idxSearch: '',
+    idxOpen: new Set(),
+  };
+
+  const EXCLUDE_PREFIXES = ['ABS','ACPT','COC','COCC','CORR','CPM','CZ','DED','DST','LLA','ROS'];
+
+  /* ============================= HELPERS ============================= */
+  function colVal(ws, r, c){
+    const addr = XLSX.utils.encode_cell({r:r-1, c:c-1});
+    const cell = ws[addr];
+    return cell ? cell.v : undefined;
+  }
+  function isEmpty(v){ return v === undefined || v === null || v === ''; }
+
+  function cleanProject(v){
+    if (isEmpty(v)) return '(none)';
+    let s = String(v).trim();
+    if (s.length && (s[0] === 'Z' || s[0] === 'z')) s = s.slice(1);
+    s = s.split('-').join('').trim();
+    return s.length ? s : '(none)';
+  }
+  function cleanTask(v){
+    if (isEmpty(v)) return '(none)';
+    let s = String(v).trim();
+    if (s.length && (s[0] === 'Z' || s[0] === 'z')) s = s.slice(1);
+    return s.length ? s : '(none)';
+  }
+  function splitBaseSuffix(p){
+    if (p === '(NONE)') return [p, ''];
+    const m = p.match(/^(.*\d)([A-Za-z])$/);
+    if (m) return [m[1].toUpperCase(), m[2].toUpperCase()];
+    return [p, ''];
+  }
+
+  /* ============================= PARSE ONE FILE ============================= */
+  async function parseFile(file){
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const ppSheets = wb.SheetNames.filter(n => n.startsWith('PP#') && !n.toUpperCase().includes('LOG'));
+    const raw = [];
+    for (const sheetName of ppSheets){
+      const ws = wb.Sheets[sheetName];
+      if (!ws['!ref']) continue;
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      const maxRow = range.e.r + 1;
+      const empRaw = colVal(ws, 3, 6);
+      const employee = isEmpty(empRaw) ? null : String(empRaw).trim();
+      const payPeriod = colVal(ws, 3, 28);
+      const ppBeg = colVal(ws, 4, 26);
+      const ppEnd = colVal(ws, 5, 26);
+      for (let r = 1; r <= maxRow; r++){
+        const a = colVal(ws, r, 1);
+        const b = colVal(ws, r, 2);
+        if (isEmpty(a) || isEmpty(b)) continue;
+        const c = colVal(ws, r, 3), d = colVal(ws, r, 4);
+        const fcol = colVal(ws, r, 6), g = colVal(ws, r, 7);
+        const h = colVal(ws, r, 8);
+        const days = [];
+        for (let col = 9; col <= 22; col++) days.push(colVal(ws, r, col));
+        const projectNo = [c,d].filter(x=>!isEmpty(x)).map(String).join('');
+        const taskCode = [fcol,g].filter(x=>!isEmpty(x)).map(String).join('');
+        raw.push({
+          file:file.name, employee, payPeriod, ppBeg, ppEnd,
+          line:a, earnCode: isEmpty(b)?'(none)':String(b).trim(),
+          projectNo, taskCode, sumCode:h, days
+        });
+      }
+    }
+    // canonical employee name per file: majority vote, ignoring the workbook
+    // template's unfilled placeholder text (e.g. "LAST, FIRST MI (Alias)", "LAST NAME, FIRST")
+    const isPlaceholder = (name) => /^LAST\b/i.test(name.trim());
+    const counts = new Map();
+    for (const r of raw){ if (r.employee && !isPlaceholder(r.employee)) counts.set(r.employee, (counts.get(r.employee)||0)+1); }
+    let canon = file.name.replace(/\.xlsx$/i,'').replace(/^\d{4}_/,'').replace(/_-_NEW$/i,'').replace(/_/g,' ').trim();
+    let best = -1;
+    for (const [name,ct] of counts.entries()){ if (ct > best){ best = ct; canon = name; } }
+    for (const r of raw){
+      r.employee = canon;
+      r.projectNoClean = cleanProject(r.projectNo);
+      r.taskCodeClean = cleanTask(r.taskCode);
+      r.projectNoNorm = r.projectNoClean.toUpperCase();
+    }
+    return raw.filter(r => !EXCLUDE_PREFIXES.some(p => r.projectNoNorm.startsWith(p)));
+  }
+
+  /* ============================= AGGREGATION ============================= */
+  function hoursOf(rec){
+    let s = 0;
+    for (const v of rec.days) if (typeof v === 'number') s += v;
+    return s;
+  }
+
+  function computeAggregates(records){
+    const byEmployee = new Map();
+    const byPP = new Map();
+    const byEarn = new Map();
+    const byProject = new Map(); // norm -> {hours,lines,employees:Set}
+    const empPP = new Map();     // employee -> Map(pp->hours)
+    let totalHours = 0, totalLines = 0;
+
+    for (const rec of records){
+      const h = hoursOf(rec);
+      totalHours += h; totalLines += 1;
+      byEmployee.set(rec.employee, (byEmployee.get(rec.employee)||0)+h);
+      byPP.set(rec.payPeriod, (byPP.get(rec.payPeriod)||0)+h);
+      byEarn.set(rec.earnCode, (byEarn.get(rec.earnCode)||0)+h);
+
+      if (!byProject.has(rec.projectNoNorm)) byProject.set(rec.projectNoNorm, {hours:0, lines:0, employees:new Set()});
+      const p = byProject.get(rec.projectNoNorm);
+      p.hours += h; p.lines += 1; p.employees.add(rec.employee);
+
+      if (!empPP.has(rec.employee)) empPP.set(rec.employee, new Map());
+      const m = empPP.get(rec.employee);
+      m.set(rec.payPeriod, (m.get(rec.payPeriod)||0)+h);
+    }
+    return {byEmployee, byPP, byEarn, byProject, empPP, totalHours, totalLines};
+  }
+
+  function buildIndexGroups(byProject){
+    const bases = new Map();
+    for (const [proj, data] of byProject.entries()){
+      const [base, suf] = splitBaseSuffix(proj);
+      if (!bases.has(base)) bases.set(base, []);
+      bases.get(base).push({suffix: suf || '—', proj, hours:data.hours, lines:data.lines, employees:data.employees});
+    }
+    const rows = [];
+    for (const [base, items] of bases.entries()){
+      items.sort((a,b)=> b.hours - a.hours);
+      const unionEmp = new Set();
+      let hours=0, lines=0;
+      for (const it of items){ hours += it.hours; lines += it.lines; for (const e of it.employees) unionEmp.add(e); }
+      rows.push({base, items, hours, lines, emps:unionEmp.size, isGroup: items.length>1});
+    }
+    return rows;
+  }
+
+  /* ============================= RENDER: FILE LIST ============================= */
+  function renderFileList(){
+    const el = document.getElementById('filelist');
+    el.innerHTML = '';
+    for (const f of state.files){
+      const row = document.createElement('div');
+      row.className = 'filerow';
+      row.innerHTML = `<span class="fname">${f.name}</span><span class="fstatus ${f.status==='ok'?'ok':f.status==='err'?'err':''}">${f.status==='pending'?'reading…':f.status==='ok'?'loaded':'error'}</span>`;
+      el.appendChild(row);
+    }
+  }
+
+  /* ============================= RENDER: DASHBOARD ============================= */
+  const PALETTE = ['#C1571F','#3F6E68','#8A6BAF','#4C7AA6','#B08A2E','#6E8C4E','#A15A7A','#5B7A8C','#9C6B3F','#4E8C7A','#7A5B9C','#8C6B4E'];
+
+  function filteredRecords(){
+    if (state.activeEmployees.size === 0) return state.records;
+    return state.records.filter(r => state.activeEmployees.has(r.employee));
+  }
+
+  function fmt(n){ return n.toLocaleString(undefined,{maximumFractionDigits:1}); }
+
+  function renderKPIs(agg){
+    const el = document.getElementById('kpiStrip');
+    const ppVals = Array.from(agg.byPP.keys()).filter(v=>v!==undefined);
+    const minPP = ppVals.length ? Math.min(...ppVals) : '—';
+    const maxPP = ppVals.length ? Math.max(...ppVals) : '—';
+    const items = [
+      ['Total hours', fmt(agg.totalHours)],
+      ['Crew members', state.employees.length],
+      ['Active projects', agg.byProject.size],
+      ['Line items', agg.totalLines],
+      ['Pay periods', ppVals.length ? `${minPP}–${maxPP}` : '—'],
+    ];
+    el.innerHTML = items.map(([lbl,num])=>`<div class="kpi"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`).join('');
+  }
+
+  function renderEmployeeFilter(){
+    const bar = document.getElementById('empFilterBar');
+    bar.innerHTML = '<span class="flabel">Crew</span>';
+    const clear = document.createElement('span');
+    clear.className = 'chip clear';
+    clear.textContent = 'All';
+    clear.onclick = () => { state.activeEmployees.clear(); refreshDashboard(); };
+    bar.appendChild(clear);
+    for (const emp of state.employees){
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (state.activeEmployees.has(emp) ? ' active' : '');
+      chip.textContent = emp;
+      chip.onclick = () => {
+        if (state.activeEmployees.has(emp)) state.activeEmployees.delete(emp);
+        else state.activeEmployees.add(emp);
+        refreshDashboard();
+      };
+      bar.appendChild(chip);
+    }
+  }
+
+  function destroyChart(id){ if (state.charts[id]){ state.charts[id].destroy(); delete state.charts[id]; } }
+
+  function renderChartEmployee(agg){
+    destroyChart('emp');
+    const entries = Array.from(agg.byEmployee.entries()).sort((a,b)=>b[1]-a[1]);
+    const ctx = document.getElementById('chartEmployee').getContext('2d');
+    state.charts.emp = new Chart(ctx, {
+      type:'bar',
+      data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE[0], borderRadius:2 }] },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{ x:{grid:{color:'rgba(150,150,150,.15)'}}, y:{grid:{display:false}, ticks:{font:{size:11}}} }
+      }
+    });
+  }
+
+  function renderChartPP(agg){
+    destroyChart('pp');
+    const entries = Array.from(agg.byPP.entries()).filter(e=>e[0]!==undefined).sort((a,b)=>a[0]-b[0]);
+    const ctx = document.getElementById('chartPayPeriod').getContext('2d');
+    state.charts.pp = new Chart(ctx, {
+      type:'line',
+      data:{ labels: entries.map(e=>'PP'+e[0]), datasets:[{ data: entries.map(e=>e[1]), borderColor: PALETTE[1], backgroundColor:'rgba(63,110,104,.15)', fill:true, tension:.25, pointRadius:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, font:{size:10}}}, y:{grid:{color:'rgba(150,150,150,.15)'}} } }
+    });
+  }
+
+  function renderChartProjects(agg){
+    destroyChart('proj');
+    const groups = buildIndexGroups(agg.byProject).slice(0,15);
+    const ctx = document.getElementById('chartProjects').getContext('2d');
+    state.charts.proj = new Chart(ctx, {
+      type:'bar',
+      data:{ labels: groups.map(g=>g.isGroup? g.base+' (all)': g.base), datasets:[{ data: groups.map(g=>g.hours), backgroundColor: PALETTE[2], borderRadius:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{maxRotation:45,minRotation:45,font:{size:10}}}, y:{grid:{color:'rgba(150,150,150,.15)'}} } }
+    });
+  }
+
+  function renderChartEarn(agg){
+    destroyChart('earn');
+    const entries = Array.from(agg.byEarn.entries()).sort((a,b)=>b[1]-a[1]);
+    const ctx = document.getElementById('chartEarn').getContext('2d');
+    state.charts.earn = new Chart(ctx, {
+      type:'doughnut',
+      data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>PALETTE[i%PALETTE.length]) }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right', labels:{boxWidth:11,font:{size:11}}}} }
+    });
+  }
+
+  function renderHeatmap(agg){
+    const el = document.getElementById('heatTable');
+    const emps = Array.from(agg.empPP.keys()).sort();
+    let allPP = new Set();
+    for (const m of agg.empPP.values()) for (const pp of m.keys()) if (pp!==undefined) allPP.add(pp);
+    const pps = Array.from(allPP).sort((a,b)=>a-b);
+    let max = 0;
+    for (const m of agg.empPP.values()) for (const v of m.values()) if (v>max) max=v;
+
+    let html = '<thead><tr><th class="rowlabel">Crew</th>' + pps.map(p=>`<th>PP${p}</th>`).join('') + '</tr></thead><tbody>';
+    for (const emp of emps){
+      const m = agg.empPP.get(emp);
+      html += `<tr><td class="rowlabel">${emp}</td>`;
+      for (const pp of pps){
+        const v = m.get(pp) || 0;
+        const t = max ? v/max : 0;
+        const bg = v ? `rgba(193,87,31,${0.08 + t*0.55})` : 'transparent';
+        html += `<td style="background:${bg}">${v ? fmt(v) : ''}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody>';
+    el.innerHTML = html;
+  }
+
+  function refreshDashboard(){
+    renderEmployeeFilter();
+    const agg = computeAggregates(filteredRecords());
+    renderKPIs(agg);
+    renderChartEmployee(agg);
+    renderChartPP(agg);
+    renderChartProjects(agg);
+    renderChartEarn(agg);
+    renderHeatmap(agg);
+    window.__lastAgg = agg;
+    renderIndex(agg);
+  }
+
+  /* ============================= RENDER: INDEX ============================= */
+  function renderIndex(agg){
+    const rows = buildIndexGroups(agg.byProject);
+    const q = state.idxSearch.trim().toUpperCase();
+    let filtered = q ? rows.filter(r => r.base.includes(q) || r.items.some(i=>i.proj.includes(q))) : rows.slice();
+
+    const key = state.idxSort.key, dir = state.idxSort.dir;
+    filtered.sort((a,b)=>{
+      let av, bv;
+      if (key==='base'){ av=a.base; bv=b.base; return dir*av.localeCompare(bv); }
+      if (key==='hours'){ av=a.hours; bv=b.hours; }
+      if (key==='lines'){ av=a.lines; bv=b.lines; }
+      if (key==='emps'){ av=a.emps; bv=b.emps; }
+      return dir*(av-bv);
+    });
+
+    const body = document.getElementById('idxBody');
+    body.innerHTML = '';
+    for (const row of filtered){
+      const tr = document.createElement('tr');
+      tr.className = 'baserow';
+      const open = state.idxOpen.has(row.base);
+      tr.innerHTML = `<td>${row.isGroup?`<span class="caret ${open?'open':''}">▸</span>`:'<span class="caret" style="visibility:hidden">▸</span>'} ${row.base}${row.isGroup?`<span class="badge">${row.items.length} suffixes</span>`:''}</td>
+        <td class="num">${fmt(row.hours)}</td><td class="num">${row.lines}</td><td class="num">${row.emps}</td>`;
+      if (row.isGroup){
+        tr.onclick = () => { if (state.idxOpen.has(row.base)) state.idxOpen.delete(row.base); else state.idxOpen.add(row.base); renderIndex(window.__lastAgg); };
+      }
+      body.appendChild(tr);
+      if (row.isGroup){
+        for (const item of row.items){
+          const sub = document.createElement('tr');
+          sub.className = 'subrow' + (open ? '' : ' hidden');
+          sub.innerHTML = `<td>${item.proj} <span class="badge">suffix ${item.suffix}</span></td><td class="num">${fmt(item.hours)}</td><td class="num">${item.lines}</td><td class="num">${item.employees.size}</td>`;
+          body.appendChild(sub);
+        }
+      }
+    }
+  }
+
+  /* ============================= TABS ============================= */
+  function setTab(tab){
+    state.tab = tab;
+    document.querySelectorAll('.rail-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+    document.getElementById('view-dashboard').classList.toggle('hidden', tab!=='dashboard');
+    document.getElementById('view-index').classList.toggle('hidden', tab!=='index');
+  }
+  document.querySelectorAll('.rail-tab').forEach(t=> t.onclick = () => setTab(t.dataset.tab));
+
+  /* ============================= INDEX INTERACTIONS ============================= */
+  document.getElementById('idxSearch').addEventListener('input', (e)=>{ state.idxSearch = e.target.value; renderIndex(window.__lastAgg); });
+  document.getElementById('expandAllBtn').onclick = () => {
+    for (const row of buildIndexGroups(window.__lastAgg.byProject)) if (row.isGroup) state.idxOpen.add(row.base);
+    renderIndex(window.__lastAgg);
+  };
+  document.getElementById('collapseAllBtn').onclick = () => { state.idxOpen.clear(); renderIndex(window.__lastAgg); };
+  document.querySelectorAll('#idxTable thead th').forEach(th=>{
+    th.onclick = () => {
+      const k = th.dataset.sort;
+      if (state.idxSort.key === k) state.idxSort.dir *= -1;
+      else state.idxSort = {key:k, dir:-1};
+      renderIndex(window.__lastAgg);
+    };
+  });
+
+  /* ============================= FILE HANDLING ============================= */
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  document.getElementById('browseBtn').onclick = () => fileInput.click();
+  document.getElementById('addMoreBtn').onclick = () => fileInput.click();
+  fileInput.onchange = (e) => handleFiles(Array.from(e.target.files));
+
+  ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', (e)=>{
+    const files = Array.from(e.dataTransfer.files).filter(f=>f.name.toLowerCase().endsWith('.xlsx'));
+    handleFiles(files);
+  });
+
+  async function handleFiles(files){
+    if (!files.length) return;
+    for (const f of files) state.files.push({name:f.name, status:'pending'});
+    renderFileList();
+    for (let i=0;i<files.length;i++){
+      const f = files[i];
+      const entry = state.files.find(x=>x.name===f.name && x.status==='pending');
+      try{
+        const recs = await parseFile(f);
+        state.records = state.records.concat(recs);
+        if (entry) entry.status = 'ok';
+      }catch(err){
+        console.error(err);
+        if (entry) entry.status = 'err';
+      }
+      renderFileList();
+    }
+    state.employees = Array.from(new Set(state.records.map(r=>r.employee))).sort();
+    if (state.records.length){
+      document.getElementById('main').classList.remove('hidden');
+      document.getElementById('rail').style.display = 'flex';
+      document.getElementById('addMoreBtn').style.display = 'inline-flex';
+      document.getElementById('exportBtn').style.display = 'inline-flex';
+      document.getElementById('dropwrap').classList.add('hidden');
+      refreshDashboard();
+    }
+  }
+
+  /* ============================= EXPORT ============================= */
+  document.getElementById('exportBtn').onclick = async () => {
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true; const origText = btn.textContent; btn.textContent = 'Building…';
+    try{
+      const wb = XLSX.utils.book_new();
+
+      const detailHeader = ['Employee','Pay Period','PP Beg','PP End','Line','Earn Code','Project No.','Task Code','Sum Code','Hours','File'];
+      const detailRows = state.records.map(r => [r.employee, r.payPeriod, r.ppBeg||'', r.ppEnd||'', r.line, r.earnCode, r.projectNoClean, r.taskCodeClean, r.sumCode||'', hoursOf(r), r.file]);
+      const wsDetail = XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows]);
+      XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail');
+
+      const agg = computeAggregates(state.records);
+      const groups = buildIndexGroups(agg.byProject);
+      const idxHeader = ['Base Number','Project No.','Suffix','Total Hours','Line Items','Crew Count'];
+      const idxRows = [];
+      for (const g of groups){
+        for (const item of g.items){
+          idxRows.push([g.base, item.proj, item.suffix, item.hours, item.lines, item.employees.size]);
+        }
+        if (g.isGroup) idxRows.push([g.base, g.base+' — Combined', 'ALL', g.hours, g.lines, g.emps]);
+      }
+      const wsIdx = XLSX.utils.aoa_to_sheet([idxHeader, ...idxRows]);
+      XLSX.utils.book_append_sheet(wb, wsIdx, 'Index');
+
+      const empHeader = ['Employee','Total Hours'];
+      const empRows = Array.from(agg.byEmployee.entries()).sort((a,b)=>b[1]-a[1]);
+      const wsEmp = XLSX.utils.aoa_to_sheet([empHeader, ...empRows]);
+      XLSX.utils.book_append_sheet(wb, wsEmp, 'By Employee');
+
+      const ppHeader = ['Pay Period','Total Hours'];
+      const ppRows = Array.from(agg.byPP.entries()).filter(e=>e[0]!==undefined).sort((a,b)=>a[0]-b[0]);
+      const wsPP = XLSX.utils.aoa_to_sheet([ppHeader, ...ppRows]);
+      XLSX.utils.book_append_sheet(wb, wsPP, 'By Pay Period');
+
+      const out = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+      const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+
+      const downloads = window.claude ? await window.claude.use('downloads') : null;
+      if (downloads){
+        try{
+          await downloads.save({filename:'fieldbook-summary.xlsx', data: blob});
+        }catch(err){
+          console.error('download rejected', err);
+        }
+      } else {
+        // fallback for non-artifact contexts (e.g. opened as a plain local file)
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'fieldbook-summary.xlsx'; a.click();
+        URL.revokeObjectURL(url);
+      }
+    } finally {
+      btn.disabled = false; btn.textContent = origText;
+    }
+  };
+
+})();
+</script>
+</body>
+</html>
