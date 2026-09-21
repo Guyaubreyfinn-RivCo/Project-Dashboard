@@ -3,34 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fieldbook — Crew Hours Analyzer</title>
+<title>Crew Hour Analyzer 2.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#EDEFEA; --panel:#F7F7F3; --ink:#12212E; --ink-soft:#3C4B57;
-  --muted:#6E7269; --line:#D7D3C4; --accent:#C1571F; --accent-ink:#FFF6EE;
+  --bg:#EEF0F3; --panel:#FFFFFF; --ink:#16212E; --ink-soft:#3C4B57;
+  --muted:#6B7280; --line:#E2E5EA; --accent:#C1571F; --accent-ink:#FFF6EE;
   --teal:#3F6E68; --teal-soft:#DCE7E4; --amber:#C1571F; --amber-soft:#F3E1D2;
-  --danger:#B23A3A; --shadow: none;
+  --danger:#B23A3A; --shadow:0 1px 2px rgba(16,24,32,.04), 0 4px 14px rgba(16,24,32,.05);
+  --sidebar-bg:#0F1B2E; --sidebar-ink:#B9C2CE; --sidebar-active:#1B3A5C; --sidebar-line:#1E2C40;
   --font-display:'Space Grotesk',sans-serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
-  --radius:3px;
+  --radius:10px;
 }
 :root:not([data-theme="light"]){
   @media (prefers-color-scheme: dark){
-    --bg:#101820; --panel:#161F29; --ink:#ECEAE1; --ink-soft:#C7CDCF;
-    --muted:#8B9294; --line:#2B3742; --accent:#E1793F; --accent-ink:#1A0E06;
+    --bg:#0C1218; --panel:#141C25; --ink:#ECEAE1; --ink-soft:#C7CDCF;
+    --muted:#8B9294; --line:#243040; --accent:#E1793F; --accent-ink:#1A0E06;
     --teal:#6FA79E; --teal-soft:#1D2B29; --amber:#E1793F; --amber-soft:#2B2013;
-    --danger:#E06868;
+    --danger:#E06868; --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.35);
+    --sidebar-bg:#0A121C; --sidebar-active:#1B3A5C; --sidebar-line:#1B2634;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#101820; --panel:#161F29; --ink:#ECEAE1; --ink-soft:#C7CDCF;
-  --muted:#8B9294; --line:#2B3742; --accent:#E1793F; --accent-ink:#1A0E06;
+  --bg:#0C1218; --panel:#141C25; --ink:#ECEAE1; --ink-soft:#C7CDCF;
+  --muted:#8B9294; --line:#243040; --accent:#E1793F; --accent-ink:#1A0E06;
   --teal:#6FA79E; --teal-soft:#1D2B29; --amber:#E1793F; --amber-soft:#2B2013;
-  --danger:#E06868;
+  --danger:#E06868; --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.35);
+  --sidebar-bg:#0A121C; --sidebar-active:#1B3A5C; --sidebar-line:#1B2634;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);}
@@ -61,27 +64,29 @@ button{font-family:var(--font-body);cursor:pointer;}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
 input[type="file"]{display:none;}
 
-/* ---------- nav rail ---------- */
+/* ---------- sidebar ---------- */
 .rail{
-  position:fixed;left:0;top:56px;bottom:0;width:76px;border-right:1px solid var(--line);
-  display:flex;flex-direction:column;align-items:stretch;padding-top:8px;background:var(--bg);z-index:15;
+  position:fixed;left:0;top:56px;bottom:0;width:212px;
+  display:flex;flex-direction:column;align-items:stretch;padding:14px 10px;
+  background:var(--sidebar-bg);z-index:15;overflow-y:auto;
 }
+.rail-section-label{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#5C6A7C;padding:14px 12px 6px;}
 .rail-tab{
-  display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 4px;
-  color:var(--muted);border-left:2px solid transparent;font-size:11px;font-weight:600;
-  font-family:var(--font-mono);letter-spacing:.02em;text-transform:uppercase;
+  display:flex;flex-direction:row;align-items:center;gap:11px;padding:10px 12px;margin-bottom:2px;
+  color:var(--sidebar-ink);border-radius:8px;font-size:13.5px;font-weight:500;font-family:var(--font-body);
 }
-.rail-tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
-.rail-tab.active{color:var(--ink);border-left-color:var(--accent);background:var(--panel);}
-.rail-tab:not(.active):hover{color:var(--ink-soft);}
+.rail-tab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+.rail-tab.active{color:#fff;background:var(--sidebar-active);}
+.rail-tab:not(.active):hover{color:#fff;background:var(--sidebar-line);}
+.rail-tab .badge-count{margin-left:auto;font-family:var(--font-mono);font-size:10px;background:rgba(255,255,255,.1);color:#B9C2CE;padding:1px 7px;border-radius:10px;}
 
 /* ---------- main ---------- */
-main{margin-left:76px;margin-top:56px;flex:1;min-width:0;padding:28px 32px 60px;}
+main{margin-left:212px;margin-top:56px;flex:1;min-width:0;padding:28px 32px 60px;}
 .hidden{display:none !important;}
 
 /* ---------- drop zone ---------- */
 .dropwrap{
-  margin-left:76px;margin-top:56px;min-height:calc(100vh - 56px);
+  margin-left:212px;margin-top:56px;min-height:calc(100vh - 56px);
   display:flex;align-items:center;justify-content:center;padding:40px;
 }
 .dropzone{
@@ -102,11 +107,12 @@ main{margin-left:76px;margin-top:56px;flex:1;min-width:0;padding:28px 32px 60px;
 .filerow .fstatus.err{color:var(--danger);}
 
 /* ---------- KPI strip ---------- */
-.kpi-strip{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:26px;background:var(--panel);}
-.kpi{flex:1;padding:16px 20px;border-right:1px solid var(--line);}
-.kpi:last-child{border-right:none;}
-.kpi .num{font-family:var(--font-mono);font-size:26px;font-weight:600;line-height:1;}
-.kpi .lbl{font-size:11.5px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px;}
+.kpi{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);}
+.kpi .icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.kpi .icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;}
+.kpi .num{font-family:var(--font-mono);font-size:24px;font-weight:600;line-height:1;}
+.kpi .lbl{font-size:11.5px;color:var(--muted);margin-top:6px;}
 
 /* ---------- filter bar ---------- */
 .filterbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:22px;}
@@ -121,13 +127,49 @@ main{margin-left:76px;margin-top:56px;flex:1;min-width:0;padding:28px 32px 60px;
 /* ---------- section / charts ---------- */
 .section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 12px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:26px;}
-.card{border:1px solid var(--line);border-radius:6px;padding:18px 18px 12px;background:var(--panel);}
+.card{border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 12px;background:var(--panel);box-shadow:var(--shadow);}
 .card h3{font-size:14px;font-weight:600;margin-bottom:14px;}
 .chartwrap{position:relative;height:260px;}
 .chartwrap.tall{height:300px;}
 
+/* ---------- project search ---------- */
+.searchwrap{position:relative;max-width:420px;margin-bottom:22px;}
+.searchwrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:2;pointer-events:none;}
+.searchwrap input{
+  width:100%;border:1px solid var(--line);background:var(--panel);color:var(--ink);box-shadow:var(--shadow);
+  padding:11px 14px 11px 38px;border-radius:var(--radius);font-size:13.5px;font-family:var(--font-body);
+}
+.searchwrap input:focus{outline:none;border-color:var(--accent);}
+.suggest{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);max-height:280px;overflow-y:auto;z-index:10;
+}
+.suggest .sitem{padding:10px 14px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.suggest .sitem:hover, .suggest .sitem.hi{background:var(--teal-soft);}
+.suggest .sitem .shours{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);}
+.suggest .sempty{padding:14px;font-size:12.5px;color:var(--muted);text-align:center;}
+
+.pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.pill.blue{background:#DCEAFB;color:#1D5FA8;}
+.pill.green{background:#DDF0E4;color:#1E7A45;}
+.pill.purple{background:#EAE1F7;color:#6B3FA0;}
+
+.empty-state{border:1px dashed var(--line);border-radius:var(--radius);padding:60px 30px;text-align:center;color:var(--muted);}
+.empty-state svg{width:32px;height:32px;stroke:var(--muted);fill:none;stroke-width:1.5;margin-bottom:14px;}
+.empty-state h3{font-size:16px;color:var(--ink-soft);margin-bottom:6px;}
+.empty-state p{font-size:13px;margin:0;}
+
+/* ---------- modal ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,15,20,.45);display:flex;align-items:center;justify-content:center;z-index:50;}
+.modal{background:var(--panel);border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,.25);padding:24px;width:100%;max-width:460px;max-height:85vh;overflow-y:auto;}
+.modal h3{font-size:17px;margin-bottom:16px;}
+.modal-option{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+.modal-option label{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;cursor:pointer;}
+.modal-option p{font-size:12px;color:var(--muted);margin:6px 0 0 22px;line-height:1.4;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+
 /* ---------- heatmap ---------- */
-.heatmap-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel);}
+.heatmap-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);}
 table.heat{border-collapse:collapse;font-size:11px;font-family:var(--font-mono);white-space:nowrap;}
 table.heat th,table.heat td{padding:5px 7px;text-align:center;border-bottom:1px solid var(--line);}
 table.heat th{position:sticky;top:0;background:var(--panel);font-weight:600;color:var(--muted);z-index:2;}
@@ -144,27 +186,50 @@ table.heat th.rowlabel{z-index:4;}
   padding:8px 12px;border-radius:var(--radius);font-size:13px;font-family:var(--font-body);
 }
 .searchbox:focus{outline:none;border-color:var(--accent);}
-table.idx{width:100%;border-collapse:collapse;font-size:13px;}
+table.idx{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
 table.idx thead th{
-  text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--ink);font-size:11px;
+  text-align:left;padding:11px 12px;border-bottom:1.5px solid var(--line);font-size:11px;
   text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;
 }
 table.idx thead th:hover{color:var(--ink);}
 table.idx tbody tr.baserow{cursor:pointer;}
 table.idx tbody tr.baserow:hover{background:var(--teal-soft);}
-table.idx tbody tr.baserow td{padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600;}
-table.idx tbody tr.subrow td{padding:6px 10px 6px 26px;border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:12.5px;}
+table.idx tbody tr.baserow td{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600;}
+table.idx tbody tr.subrow td{padding:7px 12px 7px 28px;border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:12.5px;}
 table.idx tbody tr.subrow.hidden{display:none;}
 table.idx td.num,table.idx th.num{text-align:right;font-family:var(--font-mono);}
 .caret{display:inline-block;width:10px;transition:transform .12s;color:var(--muted);}
 .caret.open{transform:rotate(90deg);}
 .badge{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:1px 7px;margin-left:6px;}
+.linklike{color:var(--accent);font-weight:600;cursor:pointer;}
+.linklike:hover{text-decoration:underline;}
+
+/* ---------- pivot / rates tables ---------- */
+table.pivot{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+table.pivot th,table.pivot td{padding:9px 12px;border-bottom:1px solid var(--line);}
+table.pivot thead th{text-align:right;font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg);}
+table.pivot thead th:first-child{text-align:left;}
+table.pivot td:first-child{text-align:left;font-weight:600;}
+table.pivot td{text-align:right;font-family:var(--font-mono);font-size:12.5px;}
+table.pivot tr.totalrow td{font-weight:700;background:var(--bg);}
+table.rates{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+table.rates th,table.rates td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;}
+table.rates thead th{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg);}
+table.rates input,table.rates select{
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:6px 8px;
+  font-size:12.5px;font-family:var(--font-body);width:100%;
+}
+table.rates input[type="number"]{font-family:var(--font-mono);}
+table.rates td.eff{font-family:var(--font-mono);font-weight:600;}
 
 footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5px;color:var(--muted);font-family:var(--font-mono);}
 
 @media (max-width: 860px){
   .grid2{grid-template-columns:1fr;}
-  .rail{width:60px;}
+  .kpi-strip{grid-template-columns:repeat(2,1fr);}
+  .rail{width:60px;padding:14px 6px;}
+  .rail-tab span.lbl{display:none;}
+  .rail-section-label{display:none;}
   main,.dropwrap{margin-left:60px;}
   .brand .tag{display:none;}
 }
@@ -173,22 +238,52 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="mark">FIELDBOOK</span><span class="tag">crew hours, sorted</span></div>
+  <div class="brand"><span class="mark">CREW HOUR ANALYZER</span><span class="tag">v2.0</span></div>
   <div class="top-actions">
     <button class="btn" id="addMoreBtn" style="display:none;">+ Add files</button>
+    <button class="btn" id="saveSessionBtn" style="display:none;">Save session</button>
     <button class="btn primary" id="exportBtn" style="display:none;">Export summary</button>
+    <button class="btn" id="clearSessionBtn" style="display:none;color:var(--danger);border-color:var(--danger);">Clear session</button>
   </div>
-  <input type="file" id="fileInput" accept=".xlsx" multiple>
+  <input type="file" id="fileInput" accept=".xlsx,.json" multiple>
+</div>
+<div style="position:fixed;top:56px;left:0;right:0;z-index:29;">
+  <div id="errorBanner" class="hidden" style="background:var(--danger);color:#fff;padding:10px 20px;font-size:13px;font-family:var(--font-mono);"></div>
+  <div id="infoBanner" class="hidden" style="background:var(--teal);color:#fff;padding:10px 20px;font-size:13px;font-family:var(--font-mono);"></div>
+  <div id="progressBanner" class="hidden" style="background:var(--panel);border-bottom:1px solid var(--line);padding:10px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;color:var(--ink-soft);font-family:var(--font-mono);">
+      <span id="progressLabel">Reading files…</span>
+      <span id="progressCount">0 / 0</span>
+    </div>
+    <div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden;">
+      <div id="progressFill" style="height:100%;width:0%;background:var(--accent);transition:width .2s ease;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="rail" id="rail" style="display:none;">
+  <div class="rail-section-label">Overview</div>
   <div class="rail-tab active" data-tab="dashboard">
     <svg viewBox="0 0 24 24"><path d="M3 12h4v8H3zM10 6h4v14h-4zM17 9h4v11h-4z"/></svg>
-    Dash
+    <span class="lbl">Dashboard</span>
   </div>
   <div class="rail-tab" data-tab="index">
     <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
-    Index
+    <span class="lbl">Index</span>
+  </div>
+  <div class="rail-tab" data-tab="project">
+    <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 100 14 7 7 0 000-14zm10 17l-5.7-5.7"/></svg>
+    <span class="lbl">Project</span>
+  </div>
+  <div class="rail-section-label">Cost</div>
+  <div class="rail-tab" data-tab="rates">
+    <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5.5H9.5a3 3 0 000 6H14a3 3 0 010 6H6.5"/></svg>
+    <span class="lbl">Rates</span>
+  </div>
+  <div class="rail-section-label">Reference</div>
+  <div class="rail-tab" data-tab="tip">
+    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/></svg>
+    <span class="lbl">TIP Codes</span>
   </div>
 </div>
 
@@ -197,7 +292,7 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     <div class="dropzone" id="dropzone">
       <svg viewBox="0 0 24 24"><path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <h2>Drop timesheet workbooks here</h2>
-      <p>Drag in any number of the biweekly .xlsx crew timesheets<br>— PP#1 through PP#26 — and Fieldbook builds the index and dashboard.</p>
+      <p>Drag in any number of the biweekly .xlsx crew timesheets<br>— PP#1 through PP#26 — and Crew Hour Analyzer builds the index and dashboard.<br>Or drop a previously saved .json session to pick up right where you left off.</p>
       <button class="btn primary" id="browseBtn">Choose files</button>
       <div class="hint">Runs entirely in this browser · nothing is uploaded anywhere</div>
     </div>
@@ -208,6 +303,12 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
 <main id="main" class="hidden">
 
   <section id="view-dashboard">
+    <div class="searchwrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="projectSearch" placeholder="Search projects by number…" autocomplete="off">
+      <div class="suggest hidden" id="projectSuggest"></div>
+    </div>
+
     <div class="kpi-strip" id="kpiStrip"></div>
 
     <div class="filterbar" id="empFilterBar">
@@ -230,6 +331,7 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
       <div class="card">
         <h3>Hours by earn code</h3>
         <div class="chartwrap tall"><canvas id="chartEarn"></canvas></div>
+        <table id="earnTable" style="width:100%;border-collapse:collapse;margin-top:12px;font-size:12.5px;"></table>
       </div>
     </div>
 
@@ -246,8 +348,9 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     <table class="idx" id="idxTable">
       <thead>
         <tr>
-          <th data-sort="base" style="width:38%;">Project</th>
+          <th data-sort="base" style="width:32%;">Project</th>
           <th data-sort="hours" class="num">Total hours</th>
+          <th data-sort="cost" class="num">Total cost</th>
           <th data-sort="lines" class="num">Line items</th>
           <th data-sort="emps" class="num">Crew</th>
         </tr>
@@ -256,12 +359,159 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     </table>
   </section>
 
+  <section id="view-project" class="hidden">
+    <div class="searchwrap" style="margin-bottom:22px;">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="projectSearch2" placeholder="Search projects by number…" autocomplete="off">
+      <div class="suggest hidden" id="projectSuggest2"></div>
+    </div>
+    <div id="projectDetailBody">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <h3>No project selected</h3>
+        <p>Search for a project above, or from the Dashboard, to see its hours broken down by task code and crew member.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-rates" class="hidden">
+    <div class="section-title">Hourly rates &amp; positions</div>
+    <p style="font-size:12.5px;color:var(--muted);margin:-6px 0 16px;max-width:640px;">
+      Effective rate = Top rate × Scale factor. Rates entered here feed the Total Cost column on the Index tab and on Project Detail. This resets when you reload the page — it isn't saved anywhere.
+    </p>
+    <div class="card" style="max-width:520px;margin-bottom:20px;">
+      <h3 style="margin-bottom:10px;">Default rate &amp; scale factor</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">Every employee already starts with the 4.0662 scale factor below. Picking a Position in the table auto-fills its Top Rate. Use this panel to backfill any still-blank Top Rate, or to change the scale factor for everyone at once — it only fills rows that don't already have a value.</p>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Default top rate</label>
+          <input type="number" id="defaultTopRate" step="0.01" min="0" placeholder="0.00" style="width:110px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px;font-family:var(--font-mono);font-size:13px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Default scale factor</label>
+          <input type="number" id="defaultScaleFactor" step="0.01" min="0" value="4.0662" style="width:100px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px;font-family:var(--font-mono);font-size:13px;">
+        </div>
+        <button class="btn primary" id="applyDefaultRateBtn">Apply to blank rows</button>
+      </div>
+    </div>
+    <table class="rates" id="ratesTable">
+      <thead>
+        <tr><th>Employee</th><th style="width:180px;">Position</th><th style="width:110px;">Top rate</th><th style="width:100px;">Scale factor</th><th style="width:110px;">Effective rate</th></tr>
+      </thead>
+      <tbody id="ratesBody"></tbody>
+    </table>
+  </section>
+
+  <section id="view-tip" class="hidden">
+    <div class="section-title">TIP task code reference</div>
+    <p style="font-size:12.5px;color:var(--muted);margin:-6px 0 16px;max-width:640px;">
+      From your county's TIP Task Codes list. "Phase(s)" shows where each code normally applies; a few codes (like the MS4-WQMP ones) are valid under every phase.
+    </p>
+    <div class="index-toolbar">
+      <input class="searchbox" id="tipSearch" placeholder="Search task code or description…">
+    </div>
+    <table class="idx" id="tipTable">
+      <thead>
+        <tr><th style="width:14%;">Task Code</th><th style="width:60%;">Description</th><th>Phase(s)</th></tr>
+      </thead>
+      <tbody id="tipBody"></tbody>
+    </table>
+  </section>
+
   <footer class="note">Fieldbook processes files locally in your browser. Nothing is sent to a server.</footer>
 </main>
+
+<div id="exportOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Export data</h3>
+    <div class="modal-option">
+      <label><input type="radio" name="exportMode" value="all" checked> All data</label>
+      <p>Detail, Index, hours by crew member, and hours by pay period — everything currently loaded.</p>
+    </div>
+    <div class="modal-option">
+      <label><input type="radio" name="exportMode" value="project"> Specific project</label>
+      <p>One workbook for a single project, broken out by phase (the letter or trailing digit after the project number) — a summary sheet plus one task-code × crew sheet per phase.</p>
+      <div class="searchwrap" id="exportProjectSearchWrap" style="max-width:none;margin-top:10px;display:none;">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="exportProjectSearch" placeholder="Search project number…" autocomplete="off">
+        <div class="suggest hidden" id="exportProjectSuggest"></div>
+      </div>
+      <div id="exportProjectChosen" style="margin-top:8px;font-size:12.5px;color:var(--muted);"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="exportCancelBtn">Cancel</button>
+      <button class="btn primary" id="exportConfirmBtn">Export</button>
+    </div>
+  </div>
+</div>
+
+<div id="saveSessionOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Save session</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin:-6px 0 16px;">Saves everything currently loaded — records, rates, and budgets — into one file you can drop back in later.</p>
+    <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:6px;">File name</label>
+    <input type="text" id="saveSessionName" style="width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:6px;font-size:13px;font-family:var(--font-body);box-sizing:border-box;">
+    <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0;">.json is added automatically.</p>
+    <div class="modal-actions">
+      <button class="btn" id="saveSessionCancelBtn">Cancel</button>
+      <button class="btn primary" id="saveSessionConfirmBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="clearSessionOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Clear session?</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 6px;">This removes every file, rate, and budget you've loaded and takes you back to an empty drop zone.</p>
+    <p style="font-size:12.5px;color:var(--danger);margin:0 0 18px;font-weight:600;">This can't be undone — save a session first if you want to keep this data.</p>
+    <div class="modal-actions">
+      <button class="btn" id="clearSessionCancelBtn">Cancel</button>
+      <button class="btn primary" id="clearSessionConfirmBtn" style="background:var(--danger);border-color:var(--danger);">Clear everything</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
   "use strict";
+
+  function showError(msg){
+    const el = document.getElementById('errorBanner');
+    if (!el) return;
+    el.textContent = '⚠ ' + msg;
+    el.classList.remove('hidden');
+  }
+  function showInfo(msg){
+    const el = document.getElementById('infoBanner');
+    if (!el) return;
+    el.textContent = 'ℹ ' + msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 6000);
+  }
+  window.addEventListener('error', (e) => {
+    showError('Something broke: ' + (e.message || 'unknown error') + '. Charts or the index may be incomplete — try reloading the page.');
+  });
+
+  function loadChartFallback(){
+    return new Promise((resolve) => {
+      if (typeof Chart !== 'undefined') return resolve(true);
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      s.onload = () => resolve(typeof Chart !== 'undefined');
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+  function loadXlsxFallback(){
+    return new Promise((resolve) => {
+      if (typeof XLSX !== 'undefined') return resolve(true);
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = () => resolve(typeof XLSX !== 'undefined');
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
 
   /* ============================= STATE ============================= */
   const state = {
@@ -271,12 +521,444 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     activeEmployees: new Set(), // filter selection; empty = all
     tab: 'dashboard',
     charts: {},
-    idxSort: {key:'hours', dir:-1},
+    idxSort: {key:'base', dir:1},
     idxSearch: '',
     idxOpen: new Set(),
+    rates: new Map(),        // employee -> {position, topRate, scaleFactor}
+    selectedProject: null,   // base project number currently shown on Project Detail tab
+    selectedPhase: null,     // phase currently selected within that project (null = "All")
+    budgets: new Map(),      // "base::task" -> budget amount ($), user-entered on Project Detail
   };
 
-  const EXCLUDE_PREFIXES = ['ABS','ACPT','COC','COCC','CORR','CPM','CZ','DED','DST','LLA','ROS'];
+  const EXCLUDE_PREFIXES = [
+    // original set
+    'ABS','ACPT','COC','COCC','CORR','CPM','CZ','DED','DST','LLA','ROS',
+    // added set
+    'AB','ABG','BAS','BGR','BHR','BMR','BNR','BRS','BTI','CUP','COO','ENC','FPM','FTM',
+    'GPA','IP','LAFCO','MISC','PM','RE','REG','PPT','TME','TPM','TR','TTM','VAC',
+    'ZCOC','ZCPM','ZCOCC','ZDED','ZFPM','ZROS',
+  ];
+  const POSITION_RATES = {
+    'Engineering Aide': 32.308,
+    'Engineering Technician I': 42.097,
+    'Engineering Technician II': 46.799,
+    'Senior Engineering Technician': 54.231,
+    'Associate Surveyor': 67.937,
+    'Senior Surveyor': 76.079,
+    'Senior Land Surveyor': 80.264,
+    'Supervising Land Surveyor': 84.678,
+    'Surveyor Project Manager': 90.478,
+    'County Surveyor': 95.478,
+    'Executive Assistant I': 33.752,
+    'Admin Services Analyst I': 39.268,
+    'Admin Services Supervisor': 54.04,
+    'Office Assistant II': 25.735,
+    'GIS Senior Analyst': 61.439,
+    'Student Intern': null,  // no rate given yet — fill in manually
+  };
+  const POSITIONS = Object.keys(POSITION_RATES);
+  const DEFAULT_SCALE_FACTOR = 4.0662;
+
+  // Default position per named staff member, keyed by surname (matched as a case-insensitive
+  // prefix against the employee's full name string). Still just a default — editable per row.
+  const STAFF_DEFAULT_POSITIONS = {
+    'WILKINSON': 'Student Intern',
+    'ACEVES': 'Engineering Aide',
+    'CHAVEZ': 'Engineering Technician I',
+    'GORECKI': 'Engineering Technician I',
+    'TAMAYO': 'Engineering Technician I',
+    'ANGELES': 'Engineering Technician II',
+    'BALL': 'Engineering Technician II',
+    'MONTENEGRO': 'Engineering Technician II',
+    'ZIOBRO': 'Engineering Technician II',
+    'HUIZAR': 'Engineering Technician II',
+    'DOHERTY': 'Engineering Technician II',
+    'IZAGUIRRE': 'Engineering Technician II',
+    'DONOSO': 'Senior Engineering Technician',
+    'NELSON': 'Senior Engineering Technician',
+    'WANG': 'Associate Surveyor',
+    'CONTRERAS': 'Senior Surveyor',
+    'CAMP-BEARD': 'Senior Surveyor',
+    'WILLIAMS': 'Senior Surveyor',
+    'CASTANEDA': 'Senior Surveyor',
+    'TRINIDAD': 'Senior Surveyor',
+    'GARCIA DE JESUS': 'Senior Surveyor',
+    'GARCIA': 'Senior Surveyor',
+    'MAYER': 'Senior Surveyor',
+    'CHAFFIN': 'Senior Land Surveyor',
+    'FINN': 'Senior Land Surveyor',
+    'HARMON': 'Senior Land Surveyor',
+    'MANI': 'Senior Land Surveyor',
+    'NESS': 'Senior Land Surveyor',
+    'GRIM': 'GIS Senior Analyst',
+    'LIN': 'GIS Senior Analyst',
+    'HOLM': 'Supervising Land Surveyor',
+    'KOW': 'Supervising Land Surveyor',
+    'AYALA': 'Office Assistant II',
+    'OLVERA': 'Executive Assistant I',
+    'ROQUE': 'Admin Services Analyst I',
+    'RAYBURN': 'Surveyor Project Manager',
+    'JACKLIN': 'Admin Services Supervisor',
+    'MCMILLAN': 'County Surveyor',
+  };
+  // longest surname first, so "GARCIA DE JESUS" is tried before the shorter "GARCIA"
+  const STAFF_DEFAULT_KEYS = Object.keys(STAFF_DEFAULT_POSITIONS).sort((a,b)=>b.length-a.length);
+  function defaultPositionFor(emp){
+    const up = emp.toUpperCase();
+    const key = STAFF_DEFAULT_KEYS.find(k => up.startsWith(k));
+    return key ? STAFF_DEFAULT_POSITIONS[key] : '';
+  }
+
+  // Task code -> human-readable description, from DBF_and_TIP_Task_Codes_2021.xlsx (TIP Task Codes tab)
+  const TASK_CODE_DESCRIPTIONS = {
+    '1000': 'Design/Engineering',
+    '1001': 'Design Management',
+    '1002': 'Design Consultant Management & Oversight',
+    '1003': 'Design Coordination',
+    '1004': 'Design Project Controls',
+    '1005': 'CONCEPTUAL DESIGN (Project Study Report)',
+    '1010': 'RESEARCH AND DATA COLLECTION',
+    '1030': 'TRAFFIC ACCIDENT TURNING COUNT',
+    '1035': 'PLANNING/FEASIBILITY STUDIES',
+    '1040': 'ALTERNATIVE DESIGN CONCEPTS',
+    '1050': 'PRELIMINARY DESIGN',
+    '1055': 'PRELIMINARY SURVEY',
+    '1060': 'PRELIM SURVEY RESEARCH',
+    '1065': 'DATA COLLECTION',
+    '1070': 'PS MONUMENT RECOVERY',
+    '1075': 'PS SETTING MONUMENTS',
+    '1080': 'PRELIM SURVEY TOPO',
+    '1085': 'GRADE STAKES',
+    '1090': 'RIGHT OF WAY STAKING',
+    '1095': 'CENTERLINE STAKING',
+    '1100': 'PRELIM SRVY POTHOLING',
+    '1105': 'PS ALIGNMENT/TRAVERSING',
+    '1110': 'PS PROFILE/CROSS SECTION',
+    '1115': 'PRELIM SURVEY CALCULATIONS',
+    '1120': 'PRELIMINARY SURVEY LEVELS',
+    '1125': 'PRECISE LEVELS - FIELD',
+    '1130': 'PRECISE LEVELS - OFFICE',
+    '1135': 'PRELIM SURVEY DRAFTING',
+    '1140': 'PS AERIAL PHOTO MARKING',
+    '1145': 'GLOBAL POSITIONING SYSTEM',
+    '1150': 'TECHNICAL STUDIES',
+    '1155': 'TRAFFIC STUDIES',
+    '1160': 'MATERIALS FIELD COLLECTION',
+    '1165': 'MATERIALS LAB ANALYSIS',
+    '1170': 'MATERIALS REPORTS',
+    '1175': 'Santa Margarita MS4-WQMP',
+    '1176': 'Santa Ana MS4-WQMP',
+    '1177': 'Whitewater MS4-WQMP',
+    '1210': 'PRELIMINARY PLANS',
+    '1230': 'PRELIM PLANS DRAFTING & CADD',
+    '1235': 'PRELIM PLAN CHECKING',
+    '1240': 'REVISED PRELIMINARY ESTIMATE',
+    '1255': 'FINAL DESIGN',
+    '1260': 'DESIGN SURVEY',
+    '1265': 'PRELIM SURVEY FIELD SURVEY',
+    '1270': 'PRELIM SURVEY ENGINEERING',
+    '1275': 'FINAL PLANS',
+    '1330': 'PAVEMENT DELINEATION/SIGN PLAN',
+    '1355': 'DESIGN CERTIFICATION & EXCEPTIONS',
+    '1365': 'FINAL PLAN CHECKING',
+    '1370': 'PERMIT PROCESSING',
+    '1380': 'SPECS AND SPECIAL PROVISIONS',
+    '1385': 'ENGINEERS ESTIMATE',
+    '1500': 'Enviromental',
+    '1501': 'Environmental Consultant Manag',
+    '1510': 'PREPARATION',
+    '1530': 'PROCESSING & REVIEW',
+    '1535': 'SPECIAL STUDIES',
+    '1610': 'MITIGATIONS - ENVIRONMENTAL',
+    '1660': 'PERMITS/AGREEMENTS',
+    '2005': 'RIGHT OF WAY SURVEYS',
+    '2010': 'RIGHT OF WAY RESEARCH',
+    '2015': 'RIGHT OF WAY MONUMENT RECOVERY',
+    '2020': 'RIGHT OF WAY STAKING',
+    '2025': 'RIGHT OF WAY TOPO',
+    '2030': 'RIGHT OF WAY DRAFTING',
+    '2035': 'Engineering',
+    '2040': 'TITLE REPORTS',
+    '2045': 'CALCULATIONS',
+    '2050': 'RIGHT OF WAY - OTHER',
+    '2055': 'LEGALS/PLATS/MAPS',
+    '2057': 'RIGHT OF WAY RECONFIGURATION',
+    '2060': 'CERTIFICATIONS',
+    '2065': 'ROW POSSESSION/ACQUISITIONS',
+    '2070': 'RIGHT OF WAY APPRAISALS',
+    '2075': 'NEGOTIATIONS',
+    '2080': 'ESCROW',
+    '2085': 'CONDEMNATIONS',
+    '2090': 'CLEARANCE/DEMOLITION',
+    '2095': 'OFF SIGHT MITIGATION',
+    '2100': 'HAZARDOUS WASTE - ROW',
+    '2105': 'RELOCATIONS',
+    '2110': 'RIGHT OF ENTRY',
+    '2115': 'DEDICATION/ACCEPT FOR MAINT',
+    '2120': 'DEDICATION/ACCEPT-PUBLIC USE',
+    '2124': 'CERTS FOR COMPLIANCE OF CONDITIONS',
+    '2505': 'UTL RESEARCH',
+    '2510': 'UTL COORDINATION/NOTIFICATIONS',
+    '2515': 'UTL PLAN PREPARATION',
+    '2520': 'UTL RELOCATIONS',
+    '2525': 'UTL CERTIFICATIONS',
+    '2530': 'Utility Services',
+    '3000': 'Construction/Engineering',
+    '3006': 'PUBLIC WORKS BIDDING',
+    '3050': 'CONSTR MANAGEMENT OVERSIGHT',
+    '3055': 'INSPECTION',
+    '3058': 'Environmental Monitoring/Mitig',
+    '3060': 'NPDES CONSTRUCTION INSPECTION',
+    '3065': 'DESIGN COORDINATION',
+    '3090': 'CONSTRUCTION DOCUMENTATION',
+    '3100': 'CONS-CONSTITUENT RESPONSES',
+    '3120': 'CLAIMS RESOLUTION',
+    '3125': 'AS-BUILTS',
+    '3130': 'SURVEYS',
+    '3135': 'CONS SURVEY RESEARCH',
+    '3140': 'CONS SURVEY MONUMENT RECOVERY',
+    '3145': 'CONS SURVEY SETTING MONUMENT',
+    '3150': 'CONS SURVEY ALIGNMENT TRAVERS',
+    '3155': 'CONS SURVEY TOPO',
+    '3160': 'CONS SURVEY STAKING',
+    '3165': 'WATERLINE',
+    '3170': 'SEWERLINE',
+    '3175': 'CURB',
+    '3180': 'CONS SURVEY RIGHT OF WAY',
+    '3185': 'CONS SURVEY BRIDGE',
+    '3190': 'CONS SURVEY STORM DRAIN',
+    '3195': 'CATCH BASIN',
+    '3200': 'SLOPE',
+    '3205': 'CS CLEARING & GRUBBING',
+    '3210': 'CHANNEL',
+    '3215': 'BLUE TOP',
+    '3220': 'CONS SURVEY CONSTRUCTION',
+    '3225': 'MEDIAN',
+    '3230': 'CS PROFILE/CROSS SECTIONS',
+    '3235': 'CONS SURVEY CALCULATIONS',
+    '3240': 'CONS SURVEY LEVELS',
+    '3245': 'CS AERIAL PHOTO MARKING',
+    '3250': 'CONS SURVEY POTHOLING',
+    '3255': 'EXTRA CONSTRUCTION WORK',
+    '3260': 'OTHER CONSTRUCTION WORK',
+    '3265': 'DRAFTING FILE/MAP MON SETTING',
+    '3270': 'FILING CORNER RECORDS MON SET',
+    '3275': 'QUALITY ASSURANCE',
+    '3280': 'OFFICE ENGINEERING',
+    '3500': 'Construction',
+    '3502': 'DL Construction Oversight',
+    '3510': 'AGGREGATE BASE MATERIAL',
+    '3515': 'LIQUID ASPHALT FOR RMAS',
+    '3520': 'MINERAL AGGREGATE FOR RMAS',
+    '3580': 'SURFACING MATERIAL-MIX/SHAPE',
+    '3590': 'FLUSH SEAL',
+    '3595': 'GRAVEL - ROADS',
+    '3600': 'GRAVEL - SHOULDERS',
+    '3610': 'GRADING - UNIMPROVED ROADS',
+    '3615': 'GRADING - SHOULDERS',
+    '3620': 'BOTTOM TO BASEPLANE',
+    '3635': 'BLASTING',
+    '3640': 'DEVELOP AND APPLY WATER',
+    '3655': 'DUST CONTROL',
+    '3825': 'CONSTRUCT CULVERTS',
+    '3845': 'HAULING',
+    '3850': 'PLACING',
+    '3860': 'CONSTRUCTION-SILT FENCES NPDES',
+    '3865': 'TRAFFIC CONTROL',
+    '3940': 'SIGNALS',
+    '3945': 'ELECTRICAL & MISCELLANEOUS',
+    '3950': 'EMERGENCY CALLS',
+    '3955': 'ACCIDENT REPAIRS',
+    '3960': 'RELAMPING',
+    '3965': 'ROUTINE MAINTENANCE',
+    '3970': 'SHOP WORK',
+    '3975': 'TEST CONTROLLER CABINET',
+    '3980': 'EXTRA WORK',
+    '3995': 'INSP FOR ENCROACHMENT PERMITS',
+    '4015': 'DIG ALERT',
+    '4085': 'CLEARING & GRUBBING',
+    '4130': 'STORM DRAIN',
+    '4250': 'GRAVEL-STOCK PILE',
+    '4260': 'PLANT MIX-STOCK PILE',
+    '5030': 'MOVING EQUIPMENT',
+    '5035': 'MOVING EQUIP - CONSTRUCTION',
+    '5040': 'MOVING EQUIP-MAINTENANCE',
+  };
+
+  const TASK_CODE_PHASES = {
+    '1000': 'B',
+    '1001': 'B',
+    '1002': 'B',
+    '1003': 'B',
+    '1004': 'B',
+    '1005': 'B',
+    '1010': 'B',
+    '1030': 'B',
+    '1035': 'B',
+    '1040': 'B',
+    '1050': 'B',
+    '1055': 'A',
+    '1060': 'A',
+    '1065': 'A',
+    '1070': 'A',
+    '1075': 'A',
+    '1080': 'A',
+    '1085': 'A',
+    '1090': 'A',
+    '1095': 'A',
+    '1100': 'A',
+    '1105': 'A',
+    '1110': 'A',
+    '1115': 'A',
+    '1120': 'A',
+    '1125': 'A',
+    '1130': 'A',
+    '1135': 'A',
+    '1140': 'A',
+    '1145': 'A',
+    '1150': 'B',
+    '1155': 'B',
+    '1160': 'B',
+    '1165': 'B',
+    '1170': 'B',
+    '1175': 'A, B, C, D, E, F, G, H',
+    '1176': 'A, B, C, D, E, F, G, H',
+    '1177': 'A, B, C, D, E, F, G, H',
+    '1210': 'B',
+    '1230': 'B',
+    '1235': 'B',
+    '1240': 'B',
+    '1255': 'B',
+    '1260': 'A',
+    '1265': 'A',
+    '1270': 'A',
+    '1275': 'B',
+    '1330': 'B',
+    '1355': 'B',
+    '1365': 'B',
+    '1370': 'B',
+    '1380': 'B',
+    '1385': 'B',
+    '1500': 'C',
+    '1501': 'C',
+    '1510': 'C',
+    '1530': 'C',
+    '1535': 'C',
+    '1610': 'C',
+    '1660': 'C',
+    '2005': 'D',
+    '2010': 'D',
+    '2015': 'D',
+    '2020': 'D',
+    '2025': 'D',
+    '2030': 'D',
+    '2035': 'D',
+    '2040': 'D',
+    '2045': 'D',
+    '2050': 'D',
+    '2055': 'D',
+    '2057': 'D',
+    '2060': 'D',
+    '2065': 'D',
+    '2070': 'D',
+    '2075': 'D',
+    '2080': 'D',
+    '2085': 'D',
+    '2090': 'D',
+    '2095': 'D',
+    '2100': 'D',
+    '2105': 'D',
+    '2110': 'D',
+    '2115': 'D',
+    '2120': 'D',
+    '2124': 'D',
+    '2505': 'H',
+    '2510': 'H',
+    '2515': 'H',
+    '2520': 'H',
+    '2525': 'H',
+    '2530': 'H',
+    '3000': 'F',
+    '3006': 'F',
+    '3050': 'F',
+    '3055': 'F',
+    '3058': 'F',
+    '3060': 'F',
+    '3065': 'F',
+    '3090': 'F',
+    '3100': 'F',
+    '3120': 'F',
+    '3125': 'F',
+    '3130': 'G',
+    '3135': 'G',
+    '3140': 'G',
+    '3145': 'G',
+    '3150': 'G',
+    '3155': 'G',
+    '3160': 'G',
+    '3165': 'G',
+    '3170': 'G',
+    '3175': 'G',
+    '3180': 'G',
+    '3185': 'G',
+    '3190': 'G',
+    '3195': 'G',
+    '3200': 'G',
+    '3205': 'G',
+    '3210': 'G',
+    '3215': 'G',
+    '3220': 'G',
+    '3225': 'G',
+    '3230': 'G',
+    '3235': 'G',
+    '3240': 'G',
+    '3245': 'G',
+    '3250': 'G',
+    '3255': 'G',
+    '3260': 'G',
+    '3265': 'G',
+    '3270': 'G',
+    '3275': 'G',
+    '3280': 'G',
+    '3500': 'E',
+    '3502': 'E',
+    '3510': 'E',
+    '3515': 'E',
+    '3520': 'E',
+    '3580': 'E',
+    '3590': 'E',
+    '3595': 'E',
+    '3600': 'E',
+    '3610': 'E',
+    '3615': 'E',
+    '3620': 'E',
+    '3635': 'E',
+    '3640': 'E',
+    '3655': 'E',
+    '3825': 'E',
+    '3845': 'E',
+    '3850': 'E',
+    '3860': 'E',
+    '3865': 'E',
+    '3940': 'E',
+    '3945': 'E',
+    '3950': 'E',
+    '3955': 'E',
+    '3960': 'E',
+    '3965': 'E',
+    '3970': 'E',
+    '3975': 'E',
+    '3980': 'E',
+    '3995': 'E',
+    '4015': 'E',
+    '4085': 'E',
+    '4130': 'E',
+    '4250': 'E',
+    '4260': 'E',
+    '5030': 'E',
+    '5035': 'E',
+    '5040': 'E',
+  };
 
   /* ============================= HELPERS ============================= */
   function colVal(ws, r, c){
@@ -299,10 +981,16 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     if (s.length && (s[0] === 'Z' || s[0] === 'z')) s = s.slice(1);
     return s.length ? s : '(none)';
   }
+  const NO_PHASE_BASES = new Set(['SU1000','SU8000']); // staff work orders — never split into a phase
   function splitBaseSuffix(p){
     if (p === '(NONE)') return [p, ''];
-    const m = p.match(/^(.*\d)([A-Za-z])$/);
-    if (m) return [m[1].toUpperCase(), m[2].toUpperCase()];
+    // Rule 1: base ends in a digit, one letter follows — that letter is the phase (A, B, G, etc.)
+    let m = p.match(/^(.*\d)([A-Za-z])$/);
+    if (m && !NO_PHASE_BASES.has(m[1].toUpperCase())) return [m[1].toUpperCase(), m[2].toUpperCase()];
+    // Rule 2: one letter + exactly 4 digits + 1 more digit — that last digit is the phase
+    // (e.g. "S52806" → project "S5280", phase "6")
+    m = p.match(/^([A-Za-z]\d{4})(\d)$/);
+    if (m && !NO_PHASE_BASES.has(m[1].toUpperCase())) return [m[1].toUpperCase(), m[2]];
     return [p, ''];
   }
 
@@ -325,18 +1013,21 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
       for (let r = 1; r <= maxRow; r++){
         const a = colVal(ws, r, 1);
         const b = colVal(ws, r, 2);
-        if (isEmpty(a) || isEmpty(b)) continue;
+        if (isEmpty(a)) continue;
+        const days = [];
+        for (let col = 9; col <= 22; col++) days.push(colVal(ws, r, col));
+        const hasHours = days.some(v => typeof v === 'number');
+        if (isEmpty(b) && !hasHours) continue;  // truly blank template row — no earn code AND no hours
         const c = colVal(ws, r, 3), d = colVal(ws, r, 4);
         const fcol = colVal(ws, r, 6), g = colVal(ws, r, 7);
         const h = colVal(ws, r, 8);
-        const days = [];
-        for (let col = 9; col <= 22; col++) days.push(colVal(ws, r, col));
+        const refs = colVal(ws, r, 24);
         const projectNo = [c,d].filter(x=>!isEmpty(x)).map(String).join('');
         const taskCode = [fcol,g].filter(x=>!isEmpty(x)).map(String).join('');
         raw.push({
           file:file.name, employee, payPeriod, ppBeg, ppEnd,
           line:a, earnCode: isEmpty(b)?'(none)':String(b).trim(),
-          projectNo, taskCode, sumCode:h, days
+          projectNo, taskCode, sumCode:h, days, refs: isEmpty(refs)?'':String(refs)
         });
       }
     }
@@ -364,30 +1055,40 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     return s;
   }
 
+  function effectiveRate(employee){
+    const r = state.rates.get(employee);
+    if (!r) return 0;
+    const top = typeof r.topRate === 'number' ? r.topRate : 0;
+    const scale = typeof r.scaleFactor === 'number' ? r.scaleFactor : 0;
+    return top * scale;
+  }
+  function costOf(rec){ return hoursOf(rec) * effectiveRate(rec.employee); }
+
   function computeAggregates(records){
     const byEmployee = new Map();
     const byPP = new Map();
     const byEarn = new Map();
-    const byProject = new Map(); // norm -> {hours,lines,employees:Set}
+    const byProject = new Map(); // norm -> {hours,lines,employees:Set,cost}
     const empPP = new Map();     // employee -> Map(pp->hours)
-    let totalHours = 0, totalLines = 0;
+    let totalHours = 0, totalLines = 0, totalCost = 0;
 
     for (const rec of records){
       const h = hoursOf(rec);
-      totalHours += h; totalLines += 1;
+      const cost = costOf(rec);
+      totalHours += h; totalLines += 1; totalCost += cost;
       byEmployee.set(rec.employee, (byEmployee.get(rec.employee)||0)+h);
       byPP.set(rec.payPeriod, (byPP.get(rec.payPeriod)||0)+h);
       byEarn.set(rec.earnCode, (byEarn.get(rec.earnCode)||0)+h);
 
-      if (!byProject.has(rec.projectNoNorm)) byProject.set(rec.projectNoNorm, {hours:0, lines:0, employees:new Set()});
+      if (!byProject.has(rec.projectNoNorm)) byProject.set(rec.projectNoNorm, {hours:0, lines:0, employees:new Set(), cost:0});
       const p = byProject.get(rec.projectNoNorm);
-      p.hours += h; p.lines += 1; p.employees.add(rec.employee);
+      p.hours += h; p.lines += 1; p.employees.add(rec.employee); p.cost += cost;
 
       if (!empPP.has(rec.employee)) empPP.set(rec.employee, new Map());
       const m = empPP.get(rec.employee);
       m.set(rec.payPeriod, (m.get(rec.payPeriod)||0)+h);
     }
-    return {byEmployee, byPP, byEarn, byProject, empPP, totalHours, totalLines};
+    return {byEmployee, byPP, byEarn, byProject, empPP, totalHours, totalLines, totalCost};
   }
 
   function buildIndexGroups(byProject){
@@ -395,15 +1096,15 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     for (const [proj, data] of byProject.entries()){
       const [base, suf] = splitBaseSuffix(proj);
       if (!bases.has(base)) bases.set(base, []);
-      bases.get(base).push({suffix: suf || '—', proj, hours:data.hours, lines:data.lines, employees:data.employees});
+      bases.get(base).push({suffix: suf || '—', proj, hours:data.hours, lines:data.lines, employees:data.employees, cost:data.cost});
     }
     const rows = [];
     for (const [base, items] of bases.entries()){
       items.sort((a,b)=> b.hours - a.hours);
       const unionEmp = new Set();
-      let hours=0, lines=0;
-      for (const it of items){ hours += it.hours; lines += it.lines; for (const e of it.employees) unionEmp.add(e); }
-      rows.push({base, items, hours, lines, emps:unionEmp.size, isGroup: items.length>1});
+      let hours=0, lines=0, cost=0;
+      for (const it of items){ hours += it.hours; lines += it.lines; cost += it.cost; for (const e of it.employees) unionEmp.add(e); }
+      rows.push({base, items, hours, lines, cost, emps:unionEmp.size, isGroup: items.length>1});
     }
     return rows;
   }
@@ -430,19 +1131,33 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
 
   function fmt(n){ return n.toLocaleString(undefined,{maximumFractionDigits:1}); }
 
+  const KPI_ICONS = {
+    hours:  ['#C1571F', '<path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/>'],
+    crew:   ['#3F6E68', '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6M16 8a3 3 0 110 6M23 20c0-2.8-2.2-5.1-5-5.7"/>'],
+    proj:   ['#4C7AA6', '<rect x="3" y="4" width="18" height="15" rx="2"/><path d="M3 9h18M8 4v0"/>'],
+    lines:  ['#8A6BAF', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+    pp:     ['#B08A2E', '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'],
+    cost:   ['#1E7A45', '<path d="M12 2v20M17 5.5H9.5a3 3 0 000 6H14a3 3 0 010 6H6.5"/>'],
+  };
+  function kpiIcon(key){
+    const [color, path] = KPI_ICONS[key];
+    return `<div class="icon" style="background:${color}"><svg viewBox="0 0 24 24">${path}</svg></div>`;
+  }
+
   function renderKPIs(agg){
     const el = document.getElementById('kpiStrip');
     const ppVals = Array.from(agg.byPP.keys()).filter(v=>v!==undefined);
     const minPP = ppVals.length ? Math.min(...ppVals) : '—';
     const maxPP = ppVals.length ? Math.max(...ppVals) : '—';
     const items = [
-      ['Total hours', fmt(agg.totalHours)],
-      ['Crew members', state.employees.length],
-      ['Active projects', agg.byProject.size],
-      ['Line items', agg.totalLines],
-      ['Pay periods', ppVals.length ? `${minPP}–${maxPP}` : '—'],
+      ['hours', 'Total hours', fmt(agg.totalHours)],
+      ['crew', 'Crew members', state.employees.length],
+      ['proj', 'Active projects', agg.byProject.size],
+      ['lines', 'Line items', agg.totalLines],
+      ['pp', 'Pay periods', ppVals.length ? `${minPP}–${maxPP}` : '—'],
+      ['cost', 'Total cost', agg.totalCost ? ('$'+fmt(agg.totalCost)) : '—'],
     ];
-    el.innerHTML = items.map(([lbl,num])=>`<div class="kpi"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`).join('');
+    el.innerHTML = items.map(([key,lbl,num])=>`<div class="kpi">${kpiIcon(key)}<div class="num">${num}</div><div class="lbl">${lbl}</div></div>`).join('');
   }
 
   function renderEmployeeFilter(){
@@ -516,6 +1231,21 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
       data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>PALETTE[i%PALETTE.length]) }] },
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right', labels:{boxWidth:11,font:{size:11}}}} }
     });
+
+    const total = entries.reduce((s,e)=>s+e[1], 0);
+    const table = document.getElementById('earnTable');
+    table.innerHTML = entries.map(([code,hours],i) => {
+      const pct = total ? (hours/total*100) : 0;
+      return `<tr style="border-top:1px solid var(--line);">
+        <td style="padding:5px 6px 5px 0;"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${PALETTE[i%PALETTE.length]};margin-right:6px;"></span>${code}</td>
+        <td style="padding:5px 6px;text-align:right;font-family:var(--font-mono);">${fmt(hours)}</td>
+        <td style="padding:5px 0 5px 6px;text-align:right;font-family:var(--font-mono);color:var(--muted);width:52px;">${pct.toFixed(1)}%</td>
+      </tr>`;
+    }).join('') + `<tr style="border-top:1.5px solid var(--ink-soft);font-weight:600;">
+        <td style="padding:6px 6px 2px 0;">Total</td>
+        <td style="padding:6px 6px 2px;text-align:right;font-family:var(--font-mono);">${fmt(total)}</td>
+        <td style="padding:6px 0 2px 6px;"></td>
+      </tr>`;
   }
 
   function renderHeatmap(agg){
@@ -543,20 +1273,46 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     el.innerHTML = html;
   }
 
-  function refreshDashboard(){
-    renderEmployeeFilter();
+  function safeRun(label, fn){
+    try{ fn(); }
+    catch(err){
+      console.error(label, err);
+      showError(`"${label}" failed to render (${err.message}). Other sections should still work.`);
+    }
+  }
+
+  async function refreshDashboard(){
+    safeRun('crew filter', renderEmployeeFilter);
     const agg = computeAggregates(filteredRecords());
-    renderKPIs(agg);
-    renderChartEmployee(agg);
-    renderChartPP(agg);
-    renderChartProjects(agg);
-    renderChartEarn(agg);
-    renderHeatmap(agg);
-    window.__lastAgg = agg;
-    renderIndex(agg);
+    window.__lastAgg = agg;  // set BEFORE anything that might throw, so Index always works
+    safeRun('KPI strip', () => renderKPIs(agg));
+    if (typeof Chart === 'undefined') await loadChartFallback();
+    if (typeof Chart === 'undefined'){
+      showError('Chart.js could not be loaded from either CDN, so the charts below are blank. The Index tab and KPI numbers are unaffected — check your internet connection and reload to retry.');
+    } else {
+      safeRun('Hours by crew member chart', () => renderChartEmployee(agg));
+      safeRun('Hours by pay period chart', () => renderChartPP(agg));
+      safeRun('Top projects chart', () => renderChartProjects(agg));
+      safeRun('Earn code chart', () => renderChartEarn(agg));
+    }
+    safeRun('heatmap', () => renderHeatmap(agg));
+    safeRun('index', () => renderIndex(agg));
+    safeRun('rates', renderRatesTable);
+    if (state.selectedProject) safeRun('project detail', renderProjectDetail);
   }
 
   /* ============================= RENDER: INDEX ============================= */
+  function naturalProjectCompare(a, b){
+    const am = a.match(/^([A-Za-z]*)(\d*)/) || ['','',''];
+    const bm = b.match(/^([A-Za-z]*)(\d*)/) || ['','',''];
+    const letterCmp = am[1].localeCompare(bm[1]);
+    if (letterCmp !== 0) return letterCmp;
+    const an = am[2] ? parseInt(am[2], 10) : 0;
+    const bn = bm[2] ? parseInt(bm[2], 10) : 0;
+    if (an !== bn) return an - bn;
+    return a.localeCompare(b);
+  }
+
   function renderIndex(agg){
     const rows = buildIndexGroups(agg.byProject);
     const q = state.idxSearch.trim().toUpperCase();
@@ -565,12 +1321,21 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     const key = state.idxSort.key, dir = state.idxSort.dir;
     filtered.sort((a,b)=>{
       let av, bv;
-      if (key==='base'){ av=a.base; bv=b.base; return dir*av.localeCompare(bv); }
+      if (key==='base'){ return dir*naturalProjectCompare(a.base, b.base); }
       if (key==='hours'){ av=a.hours; bv=b.hours; }
+      if (key==='cost'){ av=a.cost; bv=b.cost; }
       if (key==='lines'){ av=a.lines; bv=b.lines; }
       if (key==='emps'){ av=a.emps; bv=b.emps; }
       return dir*(av-bv);
     });
+
+    // SU1000 / SU8000 (staff work orders) always pinned to the top, in that order
+    const pinned = [], rest = [];
+    for (const row of filtered){
+      if (NO_PHASE_BASES.has(row.base)) pinned.push(row); else rest.push(row);
+    }
+    pinned.sort((a,b) => naturalProjectCompare(a.base, b.base));
+    filtered = pinned.concat(rest);
 
     const body = document.getElementById('idxBody');
     body.innerHTML = '';
@@ -578,8 +1343,13 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
       const tr = document.createElement('tr');
       tr.className = 'baserow';
       const open = state.idxOpen.has(row.base);
-      tr.innerHTML = `<td>${row.isGroup?`<span class="caret ${open?'open':''}">▸</span>`:'<span class="caret" style="visibility:hidden">▸</span>'} ${row.base}${row.isGroup?`<span class="badge">${row.items.length} suffixes</span>`:''}</td>
-        <td class="num">${fmt(row.hours)}</td><td class="num">${row.lines}</td><td class="num">${row.emps}</td>`;
+      const singlePhase = !row.isGroup && row.items[0].suffix && row.items[0].suffix !== '—';
+      const phaseTag = row.isGroup
+        ? `<span class="badge">${row.items.length} phases</span>`
+        : (singlePhase ? `<span class="badge">Phase ${row.items[0].suffix}</span>` : '');
+      tr.innerHTML = `<td>${row.isGroup?`<span class="caret ${open?'open':''}">▸</span>`:'<span class="caret" style="visibility:hidden">▸</span>'} <span class="linklike" data-proj="${row.base}">${row.base}</span>${phaseTag}</td>
+        <td class="num">${fmt(row.hours)}</td><td class="num">${row.cost?('$'+fmt(row.cost)):'—'}</td><td class="num">${row.lines}</td><td class="num">${row.emps}</td>`;
+      tr.querySelector('.linklike').onclick = (e) => { e.stopPropagation(); showProjectDetail(row.base); };
       if (row.isGroup){
         tr.onclick = () => { if (state.idxOpen.has(row.base)) state.idxOpen.delete(row.base); else state.idxOpen.add(row.base); renderIndex(window.__lastAgg); };
       }
@@ -588,12 +1358,324 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
         for (const item of row.items){
           const sub = document.createElement('tr');
           sub.className = 'subrow' + (open ? '' : ' hidden');
-          sub.innerHTML = `<td>${item.proj} <span class="badge">suffix ${item.suffix}</span></td><td class="num">${fmt(item.hours)}</td><td class="num">${item.lines}</td><td class="num">${item.employees.size}</td>`;
+          sub.innerHTML = `<td>${item.proj} <span class="badge">phase ${item.suffix}</span></td><td class="num">${fmt(item.hours)}</td><td class="num">${item.cost?('$'+fmt(item.cost)):'—'}</td><td class="num">${item.lines}</td><td class="num">${item.employees.size}</td>`;
           body.appendChild(sub);
         }
       }
     }
   }
+
+  /* ============================= PROJECT DETAIL ============================= */
+  function budgetKey(base, task){ return `${base}::${task}`; }
+  function getBudget(base, task){
+    const v = state.budgets.get(budgetKey(base, task));
+    return v === undefined ? null : v;
+  }
+  function setBudget(base, task, value){
+    if (value === null) state.budgets.delete(budgetKey(base, task));
+    else state.budgets.set(budgetKey(base, task), value);
+  }
+
+  function buildProjectPivot(base, phase){
+    let recs = state.records.filter(r => splitBaseSuffix(r.projectNoNorm)[0] === base);
+    if (phase) recs = recs.filter(r => splitBaseSuffix(r.projectNoNorm)[1] === phase);
+    const employees = Array.from(new Set(recs.map(r=>r.employee))).sort();
+    const taskMap = new Map(); // task -> Map(emp->hours)
+    const taskCost = new Map(); // task -> total cost ($)
+    let grandHours = 0, grandCost = 0;
+    for (const r of recs){
+      const h = hoursOf(r), c = costOf(r);
+      grandHours += h; grandCost += c;
+      if (!taskMap.has(r.taskCodeClean)) taskMap.set(r.taskCodeClean, new Map());
+      const m = taskMap.get(r.taskCodeClean);
+      m.set(r.employee, (m.get(r.employee)||0) + h);
+      taskCost.set(r.taskCodeClean, (taskCost.get(r.taskCodeClean)||0) + c);
+    }
+    const tasks = Array.from(taskMap.keys()).sort();
+    return {base, phase, employees, tasks, taskMap, taskCost, grandHours, grandCost, projectNumbers: Array.from(new Set(recs.map(r=>r.projectNoNorm))).sort()};
+  }
+
+  function projectPhases(base){
+    const recs = state.records.filter(r => splitBaseSuffix(r.projectNoNorm)[0] === base);
+    const phases = new Set();
+    for (const r of recs){
+      const [, phase] = splitBaseSuffix(r.projectNoNorm);
+      if (phase) phases.add(phase);
+    }
+    return Array.from(phases).sort();
+  }
+
+  // Travel-hours KPI: task 1055 only counts under phase A, task 3130 only under phase G,
+  // and only for this specific crew subset, and only when "Travel" appears in the reference notes.
+  const TRAVEL_KPI_CREW_PREFIXES = ['WILLIAMS','CAMP-BEARD','TRINIDAD','CASTANEDA'];
+  const TRAVEL_KPI_RULES = [
+    {task:'1055', phase:'A', label:`Task 1055 (${TASK_CODE_DESCRIPTIONS['1055']||'—'}) · Phase A · Travel`},
+    {task:'3130', phase:'G', label:`Task 3130 (${TASK_CODE_DESCRIPTIONS['3130']||'—'}) · Phase G · Travel`},
+  ];
+  function isTravelKpiCrew(emp){
+    const up = emp.toUpperCase();
+    return TRAVEL_KPI_CREW_PREFIXES.some(p => up.startsWith(p));
+  }
+  function computeTravelKpis(base, phase){
+    const out = [];
+    const rules = phase ? TRAVEL_KPI_RULES.filter(r => r.phase === phase) : TRAVEL_KPI_RULES;
+    for (const rule of rules){
+      const matches = state.records.filter(r => {
+        const [b, p] = splitBaseSuffix(r.projectNoNorm);
+        return b === base && p === rule.phase && r.taskCodeClean === rule.task &&
+               r.refs && r.refs.toLowerCase().includes('travel') && isTravelKpiCrew(r.employee);
+      });
+      if (!matches.length) continue;
+      out.push({label: rule.label, hours: matches.reduce((s,r)=>s+hoursOf(r),0), count: matches.length});
+    }
+    return out;
+  }
+
+  function showProjectDetail(base){
+    state.selectedProject = base;
+    state.selectedPhase = null;
+    setTab('project');
+    renderProjectDetail();
+  }
+
+  function renderProjectDetail(){
+    const el = document.getElementById('projectDetailBody');
+    const base = state.selectedProject;
+    if (!base){
+      el.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <h3>No project selected</h3>
+        <p>Search for a project above, or from the Dashboard, to see its hours broken down by task code and crew member.</p>
+      </div>`;
+      return;
+    }
+    const phases = projectPhases(base);
+    // if the current phase selection no longer applies to this project, reset it
+    if (state.selectedPhase && !phases.includes(state.selectedPhase)) state.selectedPhase = null;
+    const activePhase = state.selectedPhase;
+
+    const p = buildProjectPivot(base, activePhase);
+    if (!p.employees.length && !phases.length){
+      el.innerHTML = `<div class="empty-state"><h3>No data for "${base}"</h3><p>That project number doesn't appear in the loaded files.</p></div>`;
+      return;
+    }
+
+    let html = `<h3 style="margin-bottom:4px;">${base}</h3>`;
+
+    if (phases.length){
+      html += `<div class="filterbar" style="margin:6px 0 18px;"><span class="flabel">Phase</span>
+        <span class="chip${activePhase===null?' active':''}" data-phase="">All</span>` +
+        phases.map(ph => `<span class="chip${activePhase===ph?' active':''}" data-phase="${ph}">Phase ${ph}</span>`).join('') +
+        `</div>`;
+    } else {
+      html += `<p style="font-size:12.5px;color:var(--muted);margin:0 0 18px;">No phase detected for this project.</p>`;
+    }
+
+    if (!p.employees.length){
+      html += `<div class="empty-state"><h3>No data for Phase ${activePhase}</h3><p>Pick a different phase, or "All", above.</p></div>`;
+      el.innerHTML = html;
+      wireProjectPhaseChips();
+      return;
+    }
+
+    html += `<div class="filterbar" style="margin:0 0 18px;"><span class="flabel">Staff on this project</span>` +
+      p.employees.map(e => `<span class="chip">${e}</span>`).join('') + `</div>`;
+
+    if (activePhase){
+      const travelKpis = computeTravelKpis(base, activePhase);
+      if (travelKpis.length){
+        html += `<div class="kpi-strip" style="margin-bottom:18px;">` + travelKpis.map(k =>
+          `<div class="kpi">${kpiIcon('hours')}<div class="num">${fmt(k.hours)}</div><div class="lbl">${k.label} (${k.count} ${k.count===1?'entry':'entries'})</div></div>`
+        ).join('') + `</div>`;
+      }
+    } else {
+      html += `<p style="font-size:12px;color:var(--muted);margin:0 0 18px;">Select a specific phase above to see its Travel-hours KPI.</p>`;
+    }
+
+    html += `<table class="pivot"><thead><tr><th>Task code</th><th>Budget</th>`;
+    for (const emp of p.employees) html += `<th>${emp}</th>`;
+    html += `<th>Total</th><th>Total Amount</th></tr></thead><tbody>`;
+    let budgetSum = 0;
+    for (const task of p.tasks){
+      const m = p.taskMap.get(task);
+      let rowTotal = 0;
+      const desc = TASK_CODE_DESCRIPTIONS[task];
+      const taskLabel = desc ? `${task} <span style="font-weight:400;color:var(--muted);font-size:11px;">— ${desc}</span>` : task;
+      const budget = getBudget(base, task);
+      if (budget) budgetSum += budget;
+      const taskAmount = p.taskCost.get(task) || 0;
+      html += `<tr><td>${taskLabel}</td>
+        <td><input type="number" step="0.01" min="0" class="budget-input" data-task="${task}" value="${budget ?? ''}" placeholder="0.00" style="width:90px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 7px;font-family:var(--font-mono);font-size:12px;"></td>`;
+      for (const emp of p.employees){
+        const v = m.get(emp) || 0;
+        rowTotal += v;
+        html += `<td>${v ? fmt(v) : '—'}</td>`;
+      }
+      html += `<td style="font-weight:600;">${fmt(rowTotal)}</td><td>${taskAmount ? '$'+fmt(taskAmount) : '—'}</td></tr>`;
+    }
+    html += `<tr class="totalrow"><td>Total</td><td>${budgetSum ? '$'+fmt(budgetSum) : '—'}</td>`;
+    for (const emp of p.employees){
+      let colTotal = 0;
+      for (const task of p.tasks) colTotal += (p.taskMap.get(task).get(emp) || 0);
+      html += `<td>${fmt(colTotal)}</td>`;
+    }
+    html += `<td>${fmt(p.grandHours)}</td><td>${p.grandCost ? '$'+fmt(p.grandCost) : '—'}</td></tr></tbody></table>`;
+    if (p.grandCost){
+      html += `<p style="margin-top:14px;font-size:13px;color:var(--ink-soft);">Total cost at current rates: <strong style="font-family:var(--font-mono);">$${fmt(p.grandCost)}</strong></p>`;
+    }
+
+    html += `<div class="section-title" style="margin-top:24px;">Budget vs. Actual by Task Code</div>
+      <table class="pivot"><thead><tr><th>Task code</th><th>Budget</th><th>Total Amount</th><th>Difference</th></tr></thead><tbody>`;
+    let diffSum = 0;
+    for (const task of p.tasks){
+      const budget = getBudget(base, task);
+      const amount = p.taskCost.get(task) || 0;
+      const diff = (budget || 0) - amount;
+      if (budget) diffSum += diff;
+      const diffColor = budget == null ? 'var(--muted)' : (diff < 0 ? 'var(--danger)' : 'var(--teal)');
+      const desc = TASK_CODE_DESCRIPTIONS[task];
+      const taskLabel = desc ? `${task} <span style="font-weight:400;color:var(--muted);font-size:11px;">— ${desc}</span>` : task;
+      html += `<tr><td>${taskLabel}</td><td>${budget ? '$'+fmt(budget) : '—'}</td><td>${amount ? '$'+fmt(amount) : '—'}</td>
+        <td style="color:${diffColor};font-weight:600;">${budget == null ? '—' : (diff<0?'-$'+fmt(Math.abs(diff)):'$'+fmt(diff))}</td></tr>`;
+    }
+    html += `<tr class="totalrow"><td>Total</td><td>${budgetSum ? '$'+fmt(budgetSum) : '—'}</td><td>${p.grandCost ? '$'+fmt(p.grandCost) : '—'}</td>
+      <td style="color:${diffSum<0?'var(--danger)':'var(--teal)'};">${budgetSum ? (diffSum<0?'-$'+fmt(Math.abs(diffSum)):'$'+fmt(diffSum)) : '—'}</td></tr>`;
+    html += `</tbody></table>`;
+
+    el.innerHTML = html;
+    document.querySelectorAll('.budget-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const val = inp.value === '' ? null : parseFloat(inp.value);
+        setBudget(base, inp.dataset.task, val);
+        renderProjectDetail();
+      });
+    });
+    wireProjectPhaseChips();
+  }
+
+  function wireProjectPhaseChips(){
+    document.querySelectorAll('#projectDetailBody .chip[data-phase]').forEach(chip => {
+      chip.onclick = () => {
+        state.selectedPhase = chip.dataset.phase || null;
+        renderProjectDetail();
+      };
+    });
+  }
+
+  /* ============================= PROJECT SEARCH ============================= */
+  function setupProjectSearch(inputId, suggestId, onSelect){
+    const input = document.getElementById(inputId);
+    const suggest = document.getElementById(suggestId);
+    let hiIndex = -1;
+
+    function matches(){
+      const q = input.value.trim().toUpperCase();
+      if (!q || !window.__lastAgg) return [];
+      const groups = buildIndexGroups(window.__lastAgg.byProject);
+      return groups.filter(g => g.base.includes(q) || g.items.some(i=>i.proj.includes(q))).slice(0,8);
+    }
+    function renderSuggest(){
+      const results = matches();
+      hiIndex = -1;
+      if (!input.value.trim()){ suggest.classList.add('hidden'); return; }
+      if (!results.length){
+        suggest.innerHTML = '<div class="sempty">No matching projects</div>';
+        suggest.classList.remove('hidden');
+        return;
+      }
+      suggest.innerHTML = results.map((g,i)=>{
+        const singlePhase = !g.isGroup && g.items[0].suffix && g.items[0].suffix !== '—';
+        const tag = g.isGroup ? ` <span class="badge">${g.items.length} phases</span>` : (singlePhase ? ` <span class="badge">Phase ${g.items[0].suffix}</span>` : '');
+        return `<div class="sitem" data-i="${i}" data-base="${g.base}"><span>${g.base}${tag}</span><span class="shours">${fmt(g.hours)} hrs</span></div>`;
+      }).join('');
+      suggest.classList.remove('hidden');
+      suggest.querySelectorAll('.sitem').forEach(it => {
+        it.onclick = () => { suggest.classList.add('hidden'); onSelect(it.dataset.base); };
+      });
+    }
+    input.addEventListener('input', renderSuggest);
+    input.addEventListener('focus', renderSuggest);
+    input.addEventListener('keydown', (e) => {
+      const items = suggest.querySelectorAll('.sitem');
+      if (!items.length) return;
+      if (e.key === 'ArrowDown'){ e.preventDefault(); hiIndex = Math.min(hiIndex+1, items.length-1); items.forEach((it,i)=>it.classList.toggle('hi', i===hiIndex)); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); hiIndex = Math.max(hiIndex-1, 0); items.forEach((it,i)=>it.classList.toggle('hi', i===hiIndex)); }
+      else if (e.key === 'Enter'){ e.preventDefault(); const target = hiIndex>=0 ? items[hiIndex] : items[0]; if (target){ suggest.classList.add('hidden'); onSelect(target.dataset.base); } }
+      else if (e.key === 'Escape'){ suggest.classList.add('hidden'); }
+    });
+    document.addEventListener('click', (e) => { if (!input.contains(e.target) && !suggest.contains(e.target)) suggest.classList.add('hidden'); });
+  }
+
+  /* ============================= RATES ============================= */
+  function getRate(emp){
+    if (!state.rates.has(emp)){
+      const defPos = defaultPositionFor(emp);
+      const defRate = defPos && POSITION_RATES[defPos] != null ? POSITION_RATES[defPos] : null;
+      state.rates.set(emp, {position: defPos, topRate: defRate, scaleFactor: DEFAULT_SCALE_FACTOR});
+    }
+    return state.rates.get(emp);
+  }
+
+  function renderRatesTable(){
+    const body = document.getElementById('ratesBody');
+    body.innerHTML = '';
+    for (const emp of state.employees){
+      const r = getRate(emp);
+      const tr = document.createElement('tr');
+      const posOptions = ['<option value="">—</option>'].concat(POSITIONS.map(p=>`<option value="${p}" ${r.position===p?'selected':''}>${p}</option>`)).join('');
+      tr.innerHTML = `<td>${emp}</td>
+        <td><select data-emp="${emp}" data-field="position">${posOptions}</select></td>
+        <td><input type="number" step="0.01" min="0" data-emp="${emp}" data-field="topRate" value="${r.topRate ?? ''}" placeholder="0.00"></td>
+        <td><input type="number" step="0.01" min="0" data-emp="${emp}" data-field="scaleFactor" value="${r.scaleFactor ?? ''}" placeholder="${DEFAULT_SCALE_FACTOR}"></td>
+        <td class="eff">${effectiveRate(emp) ? '$'+fmt(effectiveRate(emp)) : '—'}</td>`;
+      body.appendChild(tr);
+    }
+    body.querySelectorAll('select,input').forEach(field => {
+      field.addEventListener('input', () => {
+        const emp = field.dataset.emp, key = field.dataset.field;
+        const r = getRate(emp);
+        r[key] = field.tagName==='SELECT' ? field.value : (field.value===''? null : parseFloat(field.value));
+        const row = field.closest('tr');
+        // choosing a position fills (overwrites) its associated Top Rate
+        if (key === 'position' && r.position && POSITION_RATES[r.position] !== undefined){
+          r.topRate = POSITION_RATES[r.position];
+          row.querySelector('input[data-field="topRate"]').value = r.topRate;
+        }
+        row.querySelector('.eff').textContent = effectiveRate(emp) ? '$'+fmt(effectiveRate(emp)) : '—';
+        // cost is rate-dependent, not record-dependent — refresh cost-bearing views without re-parsing anything
+        const freshAgg = computeAggregates(filteredRecords());
+        window.__lastAgg = freshAgg;
+        safeRun('KPI strip', () => renderKPIs(freshAgg));
+        safeRun('index', () => renderIndex(freshAgg));
+        if (state.selectedProject) safeRun('project detail', renderProjectDetail);
+      });
+    });
+  }
+
+  document.getElementById('applyDefaultRateBtn').onclick = () => {
+    const topRaw = document.getElementById('defaultTopRate').value;
+    const scaleRaw = document.getElementById('defaultScaleFactor').value;
+    const defTop = topRaw === '' ? null : parseFloat(topRaw);
+    const defScale = scaleRaw === '' ? null : parseFloat(scaleRaw);
+    if (defTop === null && defScale === null){
+      showError('Enter a default top rate and/or scale factor before applying.');
+      return;
+    }
+    let applied = 0;
+    for (const emp of state.employees){
+      const r = getRate(emp);
+      let changed = false;
+      if (defTop !== null && (r.topRate === null || r.topRate === undefined)){ r.topRate = defTop; changed = true; }
+      if (defScale !== null && (r.scaleFactor === null || r.scaleFactor === undefined)){ r.scaleFactor = defScale; changed = true; }
+      if (changed) applied++;
+    }
+    renderRatesTable();
+    const freshAgg = computeAggregates(filteredRecords());
+    window.__lastAgg = freshAgg;
+    safeRun('KPI strip', () => renderKPIs(freshAgg));
+    safeRun('index', () => renderIndex(freshAgg));
+    if (state.selectedProject) safeRun('project detail', renderProjectDetail);
+  };
 
   /* ============================= TABS ============================= */
   function setTab(tab){
@@ -601,8 +1683,27 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
     document.querySelectorAll('.rail-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
     document.getElementById('view-dashboard').classList.toggle('hidden', tab!=='dashboard');
     document.getElementById('view-index').classList.toggle('hidden', tab!=='index');
+    document.getElementById('view-project').classList.toggle('hidden', tab!=='project');
+    document.getElementById('view-rates').classList.toggle('hidden', tab!=='rates');
+    document.getElementById('view-tip').classList.toggle('hidden', tab!=='tip');
+    if (tab==='project') renderProjectDetail();
+    if (tab==='rates') renderRatesTable();
+    if (tab==='tip') renderTipTable();
   }
   document.querySelectorAll('.rail-tab').forEach(t=> t.onclick = () => setTab(t.dataset.tab));
+  setupProjectSearch('projectSearch', 'projectSuggest', (base) => { document.getElementById('projectSearch').value=''; showProjectDetail(base); });
+  setupProjectSearch('projectSearch2', 'projectSuggest2', (base) => { document.getElementById('projectSearch2').value=''; showProjectDetail(base); });
+
+  /* ============================= TIP TASK CODE REFERENCE ============================= */
+  let tipSearchTerm = '';
+  function renderTipTable(){
+    const body = document.getElementById('tipBody');
+    const q = tipSearchTerm.trim().toUpperCase();
+    const codes = Object.keys(TASK_CODE_DESCRIPTIONS).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    const filtered = q ? codes.filter(c => c.includes(q) || TASK_CODE_DESCRIPTIONS[c].toUpperCase().includes(q)) : codes;
+    body.innerHTML = filtered.map(code => `<tr class="baserow"><td>${code}</td><td style="font-weight:400;">${TASK_CODE_DESCRIPTIONS[code]}</td><td>${TASK_CODE_PHASES[code]||'—'}</td></tr>`).join('');
+  }
+  document.getElementById('tipSearch').addEventListener('input', (e) => { tipSearchTerm = e.target.value; renderTipTable(); });
 
   /* ============================= INDEX INTERACTIONS ============================= */
   document.getElementById('idxSearch').addEventListener('input', (e)=>{ state.idxSearch = e.target.value; renderIndex(window.__lastAgg); });
@@ -630,92 +1731,383 @@ footer.note{max-width:640px;margin:36px auto 0;text-align:center;font-size:11.5p
   ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); dropzone.classList.add('drag'); }));
   ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); dropzone.classList.remove('drag'); }));
   dropzone.addEventListener('drop', (e)=>{
-    const files = Array.from(e.dataTransfer.files).filter(f=>f.name.toLowerCase().endsWith('.xlsx'));
+    const files = Array.from(e.dataTransfer.files).filter(f=>{
+      const n = f.name.toLowerCase();
+      return n.endsWith('.xlsx') || n.endsWith('.json');
+    });
     handleFiles(files);
   });
 
+  function updateProgress(done, total, label){
+    const banner = document.getElementById('progressBanner');
+    if (total === 0){ banner.classList.add('hidden'); return; }
+    banner.classList.remove('hidden');
+    document.getElementById('progressLabel').textContent = label || 'Reading files…';
+    document.getElementById('progressCount').textContent = `${done} / ${total}`;
+    document.getElementById('progressFill').style.width = Math.round((done/total)*100) + '%';
+  }
+
+  const SESSION_FILE_TYPE = 'crew-hour-analyzer-session';
+  const SESSION_FILE_VERSION = 1;
+
+  function sanitizeFilename(name){
+    const cleaned = name.trim().replace(/[\\/:*?"<>|]/g, '_');
+    return cleaned || `crew-hour-analyzer-session-${new Date().toISOString().slice(0,10)}`;
+  }
+
+  async function saveSessionAs(rawName){
+    const filename = sanitizeFilename(rawName) + '.json';
+    const payload = {
+      type: SESSION_FILE_TYPE,
+      version: SESSION_FILE_VERSION,
+      savedAt: new Date().toISOString(),
+      files: state.files,
+      records: state.records,
+      rates: Array.from(state.rates.entries()),
+      budgets: Array.from(state.budgets.entries()),
+    };
+    const json = JSON.stringify(payload);
+    const blob = new Blob([json], {type:'application/json'});
+    const downloads = window.claude ? await window.claude.use('downloads') : null;
+    if (downloads){
+      try{ await downloads.save({filename, data: blob}); }
+      catch(err){ showError('Save was cancelled or blocked: ' + (err.message||err.code||'unknown reason')); }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  const saveSessionOverlay = document.getElementById('saveSessionOverlay');
+  function openSaveSessionModal(){
+    const input = document.getElementById('saveSessionName');
+    input.value = `crew-hour-analyzer-session-${new Date().toISOString().slice(0,10)}`;
+    saveSessionOverlay.classList.remove('hidden');
+    input.focus();
+    input.select();
+  }
+  function closeSaveSessionModal(){ saveSessionOverlay.classList.add('hidden'); }
+
+  document.getElementById('saveSessionBtn').onclick = openSaveSessionModal;
+  document.getElementById('saveSessionCancelBtn').onclick = closeSaveSessionModal;
+  saveSessionOverlay.addEventListener('click', (e) => { if (e.target === saveSessionOverlay) closeSaveSessionModal(); });
+  document.getElementById('saveSessionName').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('saveSessionConfirmBtn').click();
+  });
+  document.getElementById('saveSessionConfirmBtn').onclick = async () => {
+    const btn = document.getElementById('saveSessionConfirmBtn');
+    btn.disabled = true; const origText = btn.textContent; btn.textContent = 'Saving…';
+    try{
+      await saveSessionAs(document.getElementById('saveSessionName').value);
+      closeSaveSessionModal();
+    } finally {
+      btn.disabled = false; btn.textContent = origText;
+    }
+  }
+
+  const clearSessionOverlay = document.getElementById('clearSessionOverlay');
+  document.getElementById('clearSessionBtn').onclick = () => clearSessionOverlay.classList.remove('hidden');
+  document.getElementById('clearSessionCancelBtn').onclick = () => clearSessionOverlay.classList.add('hidden');
+  clearSessionOverlay.addEventListener('click', (e) => { if (e.target === clearSessionOverlay) clearSessionOverlay.classList.add('hidden'); });
+  document.getElementById('clearSessionConfirmBtn').onclick = () => {
+    for (const key of Object.keys(state.charts)) destroyChart(key);
+    state.files = [];
+    state.records = [];
+    state.employees = [];
+    state.activeEmployees = new Set();
+    state.rates = new Map();
+    state.budgets = new Map();
+    state.selectedProject = null;
+    state.selectedPhase = null;
+    state.idxSort = {key:'base', dir:1};
+    state.idxSearch = '';
+    state.idxOpen = new Set();
+    tipSearchTerm = '';
+    window.__lastAgg = undefined;
+
+    document.getElementById('errorBanner').classList.add('hidden');
+    document.getElementById('infoBanner').classList.add('hidden');
+    updateProgress(0, 0);
+    renderFileList();
+
+    document.getElementById('main').classList.add('hidden');
+    document.getElementById('rail').style.display = 'none';
+    document.getElementById('addMoreBtn').style.display = 'none';
+    document.getElementById('saveSessionBtn').style.display = 'none';
+    document.getElementById('exportBtn').style.display = 'none';
+    document.getElementById('clearSessionBtn').style.display = 'none';
+    document.getElementById('dropwrap').classList.remove('hidden');
+    setTab('dashboard');
+
+    clearSessionOverlay.classList.add('hidden');
+  };
+
+  async function loadSessionFile(file){
+    const text = await file.text();
+    let payload;
+    try{ payload = JSON.parse(text); }
+    catch(err){ throw new Error('not valid JSON'); }
+    if (payload.type !== SESSION_FILE_TYPE){
+      throw new Error('not a Crew Hour Analyzer session file');
+    }
+    // dates were serialized as ISO strings — restore them to Date objects
+    const records = (payload.records||[]).map(r => ({
+      ...r,
+      ppBeg: r.ppBeg ? new Date(r.ppBeg) : null,
+      ppEnd: r.ppEnd ? new Date(r.ppEnd) : null,
+    }));
+    state.records = state.records.concat(records);
+    for (const [k,v] of (payload.rates||[])) state.rates.set(k, v);
+    for (const [k,v] of (payload.budgets||[])) state.budgets.set(k, v);
+    for (const f of (payload.files||[])) state.files.push(f);
+    return records.length;
+  }
+
   async function handleFiles(files){
     if (!files.length) return;
-    for (const f of files) state.files.push({name:f.name, status:'pending'});
-    renderFileList();
-    for (let i=0;i<files.length;i++){
-      const f = files[i];
-      const entry = state.files.find(x=>x.name===f.name && x.status==='pending');
+    const jsonFiles = files.filter(f => f.name.toLowerCase().endsWith('.json'));
+    const xlsxFiles = files.filter(f => f.name.toLowerCase().endsWith('.xlsx'));
+
+    for (const f of jsonFiles){
+      const entry = {name:f.name, status:'pending'};
+      state.files.push(entry);
+      renderFileList();
       try{
-        const recs = await parseFile(f);
-        state.records = state.records.concat(recs);
-        if (entry) entry.status = 'ok';
+        await loadSessionFile(f);
+        entry.status = 'ok';
       }catch(err){
         console.error(err);
-        if (entry) entry.status = 'err';
+        entry.status = 'err';
+        showError(`"${f.name}" could not be loaded as a session file (${err.message}).`);
       }
       renderFileList();
     }
+
+    if (xlsxFiles.length){
+      if (typeof XLSX === 'undefined') await loadXlsxFallback();
+      if (typeof XLSX === 'undefined'){
+        showError('The file-reading library failed to load from both CDNs, so files cannot be processed. Check your internet connection and reload the page.');
+      } else {
+        const replacedNames = [];
+        for (const f of xlsxFiles){
+          // same filename already loaded — drop its old records/entry so the new upload fully replaces it
+          if (state.files.some(x => x.name === f.name)){
+            state.records = state.records.filter(r => r.file !== f.name);
+            state.files = state.files.filter(x => x.name !== f.name);
+            replacedNames.push(f.name);
+          }
+          state.files.push({name:f.name, status:'pending'});
+        }
+        renderFileList();
+        updateProgress(0, xlsxFiles.length, `Reading ${xlsxFiles.length} file${xlsxFiles.length===1?'':'s'}…`);
+        for (let i=0;i<xlsxFiles.length;i++){
+          const f = xlsxFiles[i];
+          const entry = state.files.find(x=>x.name===f.name && x.status==='pending');
+          updateProgress(i, xlsxFiles.length, `Reading ${f.name}…`);
+          try{
+            const recs = await parseFile(f);
+            state.records = state.records.concat(recs);
+            if (entry) entry.status = 'ok';
+          }catch(err){
+            console.error(err);
+            if (entry) entry.status = 'err';
+          }
+          renderFileList();
+          updateProgress(i+1, xlsxFiles.length, i+1===xlsxFiles.length ? 'Done' : `Reading ${f.name}…`);
+        }
+        setTimeout(() => updateProgress(0, 0), 500); // brief "Done" flash, then hide
+        if (replacedNames.length){
+          showInfo(`Replaced with the newer upload: ${replacedNames.join(', ')}. Their previous data was removed first so nothing double-counts.`);
+        }
+      }
+    }
+
     state.employees = Array.from(new Set(state.records.map(r=>r.employee))).sort();
     if (state.records.length){
       document.getElementById('main').classList.remove('hidden');
       document.getElementById('rail').style.display = 'flex';
       document.getElementById('addMoreBtn').style.display = 'inline-flex';
+      document.getElementById('saveSessionBtn').style.display = 'inline-flex';
       document.getElementById('exportBtn').style.display = 'inline-flex';
+      document.getElementById('clearSessionBtn').style.display = 'inline-flex';
       document.getElementById('dropwrap').classList.add('hidden');
       refreshDashboard();
     }
   }
 
   /* ============================= EXPORT ============================= */
-  document.getElementById('exportBtn').onclick = async () => {
-    const btn = document.getElementById('exportBtn');
-    btn.disabled = true; const origText = btn.textContent; btn.textContent = 'Building…';
+  async function saveWorkbook(wb, filename){
+    const out = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+    const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const downloads = window.claude ? await window.claude.use('downloads') : null;
+    if (downloads){
+      try{ await downloads.save({filename, data: blob}); }
+      catch(err){ console.error('download rejected', err); showError('Export was cancelled or blocked: ' + (err.message||err.code||'unknown reason')); }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function sheetName(name){
+    return name.replace(/[\[\]\:\*\?\/\\]/g,'_').slice(0,31) || 'Sheet';
+  }
+
+  async function exportAllData(){
+    const wb = XLSX.utils.book_new();
+
+    const detailHeader = ['Employee','Pay Period','PP Beg','PP End','Line','Earn Code','Project No.','Task Code','Sum Code','Hours','Cost','File'];
+    const detailRows = state.records.map(r => [r.employee, r.payPeriod, r.ppBeg||'', r.ppEnd||'', r.line, r.earnCode, r.projectNoClean, r.taskCodeClean, r.sumCode||'', hoursOf(r), costOf(r)||'', r.file]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows]), 'Detail');
+
+    const agg = computeAggregates(state.records);
+    const groups = buildIndexGroups(agg.byProject);
+    const idxHeader = ['Base Number','Project No.','Phase','Total Hours','Total Cost','Line Items','Crew Count'];
+    const idxRows = [];
+    for (const g of groups){
+      for (const item of g.items) idxRows.push([g.base, item.proj, item.suffix, item.hours, item.cost||'', item.lines, item.employees.size]);
+      if (g.isGroup) idxRows.push([g.base, g.base+' — Combined', 'ALL', g.hours, g.cost||'', g.lines, g.emps]);
+    }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([idxHeader, ...idxRows]), 'Index');
+
+    const empRows = Array.from(agg.byEmployee.entries()).sort((a,b)=>b[1]-a[1]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Employee','Total Hours'], ...empRows]), 'By Employee');
+
+    const ppRows = Array.from(agg.byPP.entries()).filter(e=>e[0]!==undefined).sort((a,b)=>a[0]-b[0]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Pay Period','Total Hours'], ...ppRows]), 'By Pay Period');
+
+    if (state.rates.size){
+      const rateRows = Array.from(state.rates.entries()).map(([emp,r]) => [emp, r.position||'', r.topRate??'', r.scaleFactor??'', effectiveRate(emp)||'']);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Employee','Position','Top Rate','Scale Factor','Effective Rate'], ...rateRows]), 'Rates');
+    }
+
+    await saveWorkbook(wb, 'fieldbook-summary.xlsx');
+  }
+
+  async function exportProjectData(base){
+    const recs = state.records.filter(r => splitBaseSuffix(r.projectNoNorm)[0] === base);
+    if (!recs.length){ showError(`No data found for project "${base}".`); return; }
+
+    const byPhase = new Map(); // phase -> records
+    for (const r of recs){
+      const [, phase] = splitBaseSuffix(r.projectNoNorm);
+      const key = phase || '(none)';
+      if (!byPhase.has(key)) byPhase.set(key, []);
+      byPhase.get(key).push(r);
+    }
+    const phases = Array.from(byPhase.keys()).sort();
+
+    const wb = XLSX.utils.book_new();
+
+    // Summary sheet: one row per phase, plus a combined row if more than one phase
+    const sumHeader = ['Phase','Project Numbers','Total Hours','Total Cost','Line Items','Crew Count'];
+    const sumRows = [];
+    let allHours=0, allCost=0, allLines=0; const allEmp = new Set();
+    for (const phase of phases){
+      const prs = byPhase.get(phase);
+      const projNums = Array.from(new Set(prs.map(r=>r.projectNoNorm))).sort();
+      let h=0,c=0; const emp=new Set();
+      for (const r of prs){ h+=hoursOf(r); c+=costOf(r); emp.add(r.employee); }
+      allHours+=h; allCost+=c; allLines+=prs.length; for (const e of emp) allEmp.add(e);
+      sumRows.push([phase, projNums.join(', '), h, c||'', prs.length, emp.size]);
+    }
+    if (phases.length>1) sumRows.push(['ALL (combined)', Array.from(new Set(recs.map(r=>r.projectNoNorm))).sort().join(', '), allHours, allCost||'', allLines, allEmp.size]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([sumHeader, ...sumRows]), 'Summary');
+
+    // One task-code × crew-member sheet per phase
+    const usedNames = new Set(['Summary','Detail']);
+    for (const phase of phases){
+      const prs = byPhase.get(phase);
+      const employees = Array.from(new Set(prs.map(r=>r.employee))).sort();
+      const taskMap = new Map();
+      for (const r of prs){
+        if (!taskMap.has(r.taskCodeClean)) taskMap.set(r.taskCodeClean, new Map());
+        const m = taskMap.get(r.taskCodeClean);
+        m.set(r.employee, (m.get(r.employee)||0) + hoursOf(r));
+      }
+      const tasks = Array.from(taskMap.keys()).sort();
+      const header = ['Task Code', ...employees, 'Total'];
+      const rows = [];
+      const colTotals = employees.map(()=>0);
+      for (const task of tasks){
+        const m = taskMap.get(task);
+        let rowTotal = 0;
+        const row = [task];
+        employees.forEach((emp,i) => { const v = m.get(emp)||0; row.push(v||''); rowTotal += v; colTotals[i] += v; });
+        row.push(rowTotal);
+        rows.push(row);
+      }
+      rows.push(['TOTAL', ...colTotals, colTotals.reduce((a,b)=>a+b,0)]);
+
+      let name = sheetName(`Phase ${phase}`);
+      let n = 1;
+      while (usedNames.has(name)){ name = sheetName(`Phase ${phase} (${++n})`); }
+      usedNames.add(name);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), name);
+    }
+
+    // Raw detail for the whole project, phase column included
+    const detailHeader = ['Employee','Phase','Pay Period','PP Beg','PP End','Line','Earn Code','Project No.','Task Code','Sum Code','Hours','Cost','File'];
+    const detailRows = recs.map(r => {
+      const [, phase] = splitBaseSuffix(r.projectNoNorm);
+      return [r.employee, phase||'(none)', r.payPeriod, r.ppBeg||'', r.ppEnd||'', r.line, r.earnCode, r.projectNoClean, r.taskCodeClean, r.sumCode||'', hoursOf(r), costOf(r)||'', r.file];
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows]), 'Detail');
+
+    await saveWorkbook(wb, `fieldbook-${base}-by-phase.xlsx`);
+  }
+
+  /* ---- export modal wiring ---- */
+  let exportChosenProject = null;
+  const exportOverlay = document.getElementById('exportOverlay');
+  const exportConfirmBtn = document.getElementById('exportConfirmBtn');
+
+  function openExportModal(){
+    exportChosenProject = null;
+    const chosenEl = document.getElementById('exportProjectChosen');
+    chosenEl.textContent = '';
+    chosenEl.style.color = 'var(--muted)';
+    document.querySelector('input[name="exportMode"][value="all"]').checked = true;
+    document.getElementById('exportProjectSearchWrap').style.display = 'none';
+    document.getElementById('exportProjectSearch').value = '';
+    exportOverlay.classList.remove('hidden');
+  }
+  function closeExportModal(){ exportOverlay.classList.add('hidden'); }
+
+  document.getElementById('exportBtn').onclick = openExportModal;
+  document.getElementById('exportCancelBtn').onclick = closeExportModal;
+  exportOverlay.addEventListener('click', (e) => { if (e.target === exportOverlay) closeExportModal(); });
+
+  document.querySelectorAll('input[name="exportMode"]').forEach(r => {
+    r.addEventListener('change', () => {
+      const mode = document.querySelector('input[name="exportMode"]:checked').value;
+      document.getElementById('exportProjectSearchWrap').style.display = mode==='project' ? 'block' : 'none';
+    });
+  });
+  setupProjectSearch('exportProjectSearch', 'exportProjectSuggest', (base) => {
+    exportChosenProject = base;
+    document.getElementById('exportProjectSearch').value = base;
+    document.getElementById('exportProjectChosen').textContent = `Selected: ${base}`;
+  });
+
+  exportConfirmBtn.onclick = async () => {
+    const mode = document.querySelector('input[name="exportMode"]:checked').value;
+    if (mode === 'project' && !exportChosenProject){
+      document.getElementById('exportProjectChosen').textContent = 'Pick a project from the search results first.';
+      document.getElementById('exportProjectChosen').style.color = 'var(--danger)';
+      return;
+    }
+    exportConfirmBtn.disabled = true; const origText = exportConfirmBtn.textContent; exportConfirmBtn.textContent = 'Building…';
     try{
-      const wb = XLSX.utils.book_new();
-
-      const detailHeader = ['Employee','Pay Period','PP Beg','PP End','Line','Earn Code','Project No.','Task Code','Sum Code','Hours','File'];
-      const detailRows = state.records.map(r => [r.employee, r.payPeriod, r.ppBeg||'', r.ppEnd||'', r.line, r.earnCode, r.projectNoClean, r.taskCodeClean, r.sumCode||'', hoursOf(r), r.file]);
-      const wsDetail = XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows]);
-      XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail');
-
-      const agg = computeAggregates(state.records);
-      const groups = buildIndexGroups(agg.byProject);
-      const idxHeader = ['Base Number','Project No.','Suffix','Total Hours','Line Items','Crew Count'];
-      const idxRows = [];
-      for (const g of groups){
-        for (const item of g.items){
-          idxRows.push([g.base, item.proj, item.suffix, item.hours, item.lines, item.employees.size]);
-        }
-        if (g.isGroup) idxRows.push([g.base, g.base+' — Combined', 'ALL', g.hours, g.lines, g.emps]);
-      }
-      const wsIdx = XLSX.utils.aoa_to_sheet([idxHeader, ...idxRows]);
-      XLSX.utils.book_append_sheet(wb, wsIdx, 'Index');
-
-      const empHeader = ['Employee','Total Hours'];
-      const empRows = Array.from(agg.byEmployee.entries()).sort((a,b)=>b[1]-a[1]);
-      const wsEmp = XLSX.utils.aoa_to_sheet([empHeader, ...empRows]);
-      XLSX.utils.book_append_sheet(wb, wsEmp, 'By Employee');
-
-      const ppHeader = ['Pay Period','Total Hours'];
-      const ppRows = Array.from(agg.byPP.entries()).filter(e=>e[0]!==undefined).sort((a,b)=>a[0]-b[0]);
-      const wsPP = XLSX.utils.aoa_to_sheet([ppHeader, ...ppRows]);
-      XLSX.utils.book_append_sheet(wb, wsPP, 'By Pay Period');
-
-      const out = XLSX.write(wb, {type:'array', bookType:'xlsx'});
-      const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-
-      const downloads = window.claude ? await window.claude.use('downloads') : null;
-      if (downloads){
-        try{
-          await downloads.save({filename:'fieldbook-summary.xlsx', data: blob});
-        }catch(err){
-          console.error('download rejected', err);
-        }
-      } else {
-        // fallback for non-artifact contexts (e.g. opened as a plain local file)
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'fieldbook-summary.xlsx'; a.click();
-        URL.revokeObjectURL(url);
-      }
+      if (mode === 'all') await exportAllData();
+      else await exportProjectData(exportChosenProject);
+      closeExportModal();
     } finally {
-      btn.disabled = false; btn.textContent = origText;
+      exportConfirmBtn.disabled = false; exportConfirmBtn.textContent = origText;
     }
   };
 
